@@ -1,0 +1,63 @@
+buildscript {
+    ext {
+        lombookVersion = '1.18.24'
+        springBootVersion = '3.2.10'
+        springCloudVersion = '2023.0.3'
+        mybatisPlusVersion = '3.5.14'
+        mysqlVersion = '8.0.33'
+    }
+}
+plugins {
+    id 'org.springframework.boot' version '3.2.10'
+    id 'io.spring.dependency-management' version '1.1.4' // 添加依赖管理插件
+    id 'java'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+repositories {
+    // 尝试不同的仓库顺序
+    //先从maven本地仓库找
+    mavenLocal()
+    mavenCentral()
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://repo.spring.io/snapshot' }
+}
+//全局配置
+allprojects {
+    apply plugin: 'java'
+    group 'com.yzx'
+    version '0.0.1-SNAPSHOT'
+}
+subprojects {
+    apply {
+        plugin('org.springframework.boot')
+        plugin('io.spring.dependency-management')
+        plugin('java')
+    }
+    dependencies {
+        annotationProcessor 'org.projectlombok:lombok'
+        implementation 'org.projectlombok:lombok'
+    }
+    dependencyManagement {
+        dependencies {
+            // 正确写法：使用 dependency() 方法
+            dependency "org.projectlombok:lombok:${lombookVersion}" // 注意修正拼写：lombook → lombok
+            dependency "mysql:mysql-connector-java:${mysqlVersion}"
+            dependency "com.baomidou:mybatis-plus-spring-boot3-starter:${mybatisPlusVersion}"
+            dependency "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"
+            dependency "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
+            dependency "org.springframework.boot:spring-boot-starter-data-elasticsearch:3.2.0"
+            dependency "org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}"
+            dependency "org.springframework.boot:spring-boot-starter-data-mongodb:${springBootVersion}"
+        }
+        imports {
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+            mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+        }
+    }
+}

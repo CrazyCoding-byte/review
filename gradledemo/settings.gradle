@@ -1,0 +1,3 @@
+rootProject.name = 'gradledemo'
+include 'model-demo'
+include 'chat-demo'

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-server/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-server/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-dubbo-sample/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-dubbo-sample/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-dubbo-sample/tcc-transaction-dubbo-capital-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-dubbo-sample/tcc-transaction-dubbo-redpacket-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-grpc-sample/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-grpc-sample/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-grpc-sample/tcc-transaction-grpc-capital-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-grpc-sample/tcc-transaction-grpc-redpacket-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-http-sample/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-http-sample/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-http-sample/tcc-transaction-http-capital-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-http-sample/tcc-transaction-http-redpacket-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-multiple-tier-sample/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-multiple-tier-sample/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-multiple-tier-sample/tcc-transaction-multiple-tier-pay-account-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-multiple-tier-sample/tcc-transaction-multiple-tier-pay-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-multiple-tier-sample/tcc-transaction-multiple-tier-pay-point-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-multiple-tier-sample/tcc-transaction-multiple-tier-trade-order-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-multiple-tier-sample/tcc-transaction-multiple-tier-trade-point-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-sample-domain/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-sample-domain/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/tcc-transaction/tcc-transaction-tutorial-sample/tcc-transaction-sample-domain/tcc-transaction-sample-common/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/web_flux_demo/src/main/java" charset="UTF-8" />
+  </component>
+</project>
