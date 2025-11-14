@@ -1,0 +1,17 @@
+syntax = "proto3";
+// 注意：包名要和你的项目Java包对应（确保生成的类在正确包下）
+package com.yzx.crazycodingbytemq.model;
+
+// 客户端连接请求消息（对应ConnectionManager中register方法的参数）
+message ConnectRequest {
+  string clientId = 1;      // 客户端唯一标识（如producer-1、consumer-2）
+  string clientType = 2;    // 客户端类型（PRODUCER/CONSUMER）
+  string clientVersion = 3; // 客户端版本（如1.0.0）
+}
+
+// 服务端连接响应消息（对应ClientResponseHandler要处理的内容）
+message ConnectResponse {
+  bool success = 1;         // 连接是否成功
+  string message = 2;       // 响应提示（如"连接成功"、"客户端ID已存在"）
+  string serverId = 3;      // 服务端节点ID
+}

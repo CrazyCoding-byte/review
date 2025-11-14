@@ -9,14 +9,6 @@
         <outputRelativeToContentRoot value="true" />
         <module name="web_flux_demo" />
       </profile>
-      <profile name="Gradle Imported" enabled="true">
-        <outputRelativeToContentRoot value="true" />
-        <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.24/lombok-1.18.24.jar" />
-        </processorPath>
-        <module name="gradledemo.chat-demo.main" />
-        <module name="gradledemo.model-demo.main" />
-      </profile>
       <profile name="Annotation profile for tcc-transaction-server" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
@@ -26,86 +18,20 @@
         </processorPath>
         <module name="tcc-transaction-server" />
       </profile>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.24/lombok-1.18.24.jar" />
+        </processorPath>
+        <module name="crazycoding-byte-registerwithconfig.main" />
+      </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="chat-demo" target="17" />
-      <module name="chat-demo.main" target="17" />
-      <module name="chat-demo.test" target="17" />
-      <module name="model-demo" target="17" />
-      <module name="model-demo.main" target="17" />
-      <module name="model-demo.test" target="17" />
-      <module name="tcc-transaction-dashboard" target="1.8" />
-      <module name="tcc-transaction-dubbo-capital" target="1.8" />
-      <module name="tcc-transaction-dubbo-capital-api" target="1.8" />
-      <module name="tcc-transaction-dubbo-order" target="1.8" />
-      <module name="tcc-transaction-dubbo-redpacket" target="1.8" />
-      <module name="tcc-transaction-dubbo-redpacket-api" target="1.8" />
-      <module name="tcc-transaction-dubbo-sample" target="1.8" />
-      <module name="tcc-transaction-grpc-capital" target="1.8" />
-      <module name="tcc-transaction-grpc-capital-api" target="1.8" />
-      <module name="tcc-transaction-grpc-order" target="1.8" />
-      <module name="tcc-transaction-grpc-redpacket" target="1.8" />
-      <module name="tcc-transaction-grpc-redpacket-api" target="1.8" />
-      <module name="tcc-transaction-grpc-sample" target="1.8" />
-      <module name="tcc-transaction-http-capital" target="1.8" />
-      <module name="tcc-transaction-http-capital-api" target="1.8" />
-      <module name="tcc-transaction-http-order" target="1.8" />
-      <module name="tcc-transaction-http-redpacket" target="1.8" />
-      <module name="tcc-transaction-http-redpacket-api" target="1.8" />
-      <module name="tcc-transaction-http-sample" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-pay" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-pay-account" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-pay-account-api" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-pay-api" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-pay-point" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-pay-point-api" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-sample" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-trade" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-trade-order" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-trade-order-api" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-trade-point" target="1.8" />
-      <module name="tcc-transaction-multiple-tier-trade-point-api" target="1.8" />
-      <module name="tcc-transaction-sample-captial" target="1.8" />
-      <module name="tcc-transaction-sample-common" target="1.8" />
-      <module name="tcc-transaction-sample-domain" target="1.8" />
-      <module name="tcc-transaction-sample-order" target="1.8" />
-      <module name="tcc-transaction-sample-redpacket" target="1.8" />
-      <module name="tcc-transaction-tutorial-sample" target="1.8" />
+      <module name="gradledemo" target="17" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="tcc-transaction-dashboard" options="-parameters" />
-      <module name="tcc-transaction-dubbo-capital" options="-parameters" />
-      <module name="tcc-transaction-dubbo-capital-api" options="-parameters" />
-      <module name="tcc-transaction-dubbo-order" options="-parameters" />
-      <module name="tcc-transaction-dubbo-redpacket" options="-parameters" />
-      <module name="tcc-transaction-dubbo-redpacket-api" options="-parameters" />
-      <module name="tcc-transaction-grpc-capital" options="-parameters" />
-      <module name="tcc-transaction-grpc-capital-api" options="-parameters" />
-      <module name="tcc-transaction-grpc-order" options="-parameters" />
-      <module name="tcc-transaction-grpc-redpacket" options="-parameters" />
-      <module name="tcc-transaction-grpc-redpacket-api" options="-parameters" />
-      <module name="tcc-transaction-http-capital" options="-parameters" />
-      <module name="tcc-transaction-http-capital-api" options="-parameters" />
-      <module name="tcc-transaction-http-order" options="-parameters" />
-      <module name="tcc-transaction-http-redpacket" options="-parameters" />
-      <module name="tcc-transaction-http-redpacket-api" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-pay" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-pay-account" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-pay-account-api" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-pay-api" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-pay-point" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-pay-point-api" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-trade" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-trade-order" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-trade-order-api" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-trade-point" options="-parameters" />
-      <module name="tcc-transaction-multiple-tier-trade-point-api" options="-parameters" />
-      <module name="tcc-transaction-sample-captial" options="-parameters" />
-      <module name="tcc-transaction-sample-common" options="-parameters" />
-      <module name="tcc-transaction-sample-order" options="-parameters" />
-      <module name="tcc-transaction-sample-redpacket" options="-parameters" />
       <module name="tcc-transaction-server" options="-parameters" />
       <module name="web_flux_demo" options="-parameters" />
     </option>

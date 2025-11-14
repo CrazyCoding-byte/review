@@ -5,28 +5,33 @@
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
         <option name="distributionType" value="LOCAL" />
-        <option name="externalProjectPath" value="$PROJECT_DIR$/esdemo" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/crazycoding-byte-gateway" />
         <option name="gradleHome" value="D:/gradle/gradle-9.0.0" />
-        <option name="gradleJvm" value="17" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$/esdemo" />
+            <option value="$PROJECT_DIR$/crazycoding-byte-gateway" />
           </set>
         </option>
       </GradleProjectSettings>
       <GradleProjectSettings>
         <option name="distributionType" value="LOCAL" />
-        <option name="externalProjectPath" value="$PROJECT_DIR$/gradledemo" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/crazycoding-byte-mq" />
         <option name="gradleHome" value="D:/gradle/gradle-9.0.0" />
-        <option name="gradleJvm" value="17" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$/gradledemo" />
-            <option value="$PROJECT_DIR$/gradledemo/chat-demo" />
-            <option value="$PROJECT_DIR$/gradledemo/model-demo" />
+            <option value="$PROJECT_DIR$/crazycoding-byte-mq" />
           </set>
         </option>
-        <option name="resolveExternalAnnotations" value="true" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="distributionType" value="LOCAL" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/crazycoding-byte-registerwithconfig" />
+        <option name="gradleHome" value="D:/gradle/gradle-9.0.0" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/crazycoding-byte-registerwithconfig" />
+          </set>
+        </option>
       </GradleProjectSettings>
     </option>
   </component>
