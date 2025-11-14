@@ -26,5 +26,6 @@ public class ServerConfig {
     private String sslKeyPath = "cert/server.key";
     private int maxFrameLength = 1024 * 1024 * 10;//最大消息长度
     private int maxConnection = 10000;//最大连接长度
-
+    private boolean sslClientAuthRequired = true;
+    private String sslKeyPassword = "";
 }

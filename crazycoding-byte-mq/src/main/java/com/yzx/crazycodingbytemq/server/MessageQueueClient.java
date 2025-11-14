@@ -74,12 +74,11 @@ public class MessageQueueClient {
                 .setClientVersion("1.0.0")
                 .build();
         byte[] body = request.toByteArray();
-        int length = body.length;
         ProtocolFrame protocolFrame = new ProtocolFrame(
                 ProtocolConstant.MAGIC,
                 ProtocolConstant.Version,
-                length,
-                MessageTypeEnum.CONNECT_REQUEST.getCode()
+                body.length,
+                MessageTypeEnum.CONNECT_REQUEST.getCode(),
                 body
         );
         channel.writeAndFlush(protocolFrame);

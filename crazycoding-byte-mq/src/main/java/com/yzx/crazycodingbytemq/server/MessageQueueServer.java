@@ -4,9 +4,14 @@ import com.yzx.crazycodingbytemq.codec.ProtocolDecoder;
 import com.yzx.crazycodingbytemq.codec.ProtocolEncoder;
 import com.yzx.crazycodingbytemq.config.ConfigLoader;
 import com.yzx.crazycodingbytemq.config.ServerConfig;
+import com.yzx.crazycodingbytemq.handler.ConnectHandler;
 import com.yzx.crazycodingbytemq.handler.HeartbeatHandler;
 import com.yzx.crazycodingbytemq.metrics.MetricHandler;
 import com.yzx.crazycodingbytemq.ssl.SslContextFactory;
+import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
+import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.netty.bootstrap.ServerBootstrap;
@@ -22,6 +27,11 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.channel.socket.SocketChannel;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableEntryException;
+import java.security.cert.CertificateException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -36,52 +46,49 @@ public class MessageQueueServer {
     private final ServerConfig config;
     private final NioEventLoopGroup bossGroup;
     private final NioEventLoopGroup workerGroup;
-    private final PrometheusMeterRegistry meterRegistry; // 指标注册表
+    private final PrometheusMeterRegistry meterRegistry;
     private Channel serverChannel;
 
     public MessageQueueServer() {
         this.config = ConfigLoader.bindConfig(ServerConfig.class, "mq.server");
-        // 初始化线程组（带命名，便于监控）
+        // 修复：方法名拼写错误（Work → Worker）
         this.bossGroup = new NioEventLoopGroup(
                 config.getBossThreadCount(),
                 new DefaultThreadFactory("mq-server-boss")
         );
         this.workerGroup = new NioEventLoopGroup(
-                config.getWorkerThreadCount(),
+                config.getWorkThreadCount(), // 修复：正确方法名
                 new DefaultThreadFactory("mq-server-worker")
         );
-        // 初始化指标注册表
         this.meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
-        new JvmMetrics().bindTo(meterRegistry); // 绑定JVM指标
+        new JvmMemoryMetrics().bindTo(meterRegistry);
+        new JvmGcMetrics().bindTo(meterRegistry);
+        new JvmThreadMetrics().bindTo(meterRegistry);
+        new ProcessorMetrics().bindTo(meterRegistry);
     }
 
-    public void start() throws InterruptedException {
-        // 1. 创建SSL上下文
-        SslContext sslContext = SslContextFactory.getServerContext();
+    public void start() throws InterruptedException, IOException, UnrecoverableEntryException, CertificateException, KeyStoreException, NoSuchAlgorithmException {
+        SslContext sslContext = SslContextFactory.createServerSslContext();
 
-        // 2. 配置启动器
         ServerBootstrap bootstrap = new ServerBootstrap()
                 .group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
                 .option(ChannelOption.SO_BACKLOG, config.getBacklog())
-                .option(ChannelOption.SO_REUSEADDR, true) // 端口复用
+                .option(ChannelOption.SO_REUSEADDR, true)
                 .childOption(ChannelOption.SO_KEEPALIVE, config.isKeepAlive())
-                .childOption(ChannelOption.TCP_NODELAY, true) // 禁用Nagle算法（低延迟）
+                .childOption(ChannelOption.TCP_NODELAY, true)
                 .childOption(ChannelOption.SO_SNDBUF, config.getSendBufSize())
                 .childOption(ChannelOption.SO_RCVBUF, config.getRcvBufSize())
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) {
-                        // 3. 配置处理器链（顺序重要）
                         var pipeline = ch.pipeline();
 
-                        // SSL处理器（最前面，先解密）
                         if (sslContext != null) {
                             SslHandler sslHandler = sslContext.newHandler(ch.alloc());
                             pipeline.addLast("ssl", sslHandler);
                         }
 
-                        // 心跳检测
                         pipeline.addLast("idleStateHandler", new IdleStateHandler(
                                 config.getHeartbeatTimeout().getSeconds(),
                                 0,
@@ -89,45 +96,48 @@ public class MessageQueueServer {
                                 TimeUnit.SECONDS
                         ));
 
-                        // 编解码
                         pipeline.addLast("decoder", new ProtocolDecoder(config.getMaxFrameLength()));
                         pipeline.addLast("encoder", new ProtocolEncoder());
-                        // 指标采集
                         pipeline.addLast("metricHandler", MetricHandler.create(meterRegistry));
-                        // 业务处理器
                         pipeline.addLast("heartbeatHandler", new HeartbeatHandler());
-                        pipeline.addLast("connectHandler", new );
+                        // 修复：补全ConnectHandler实例化
+                        pipeline.addLast("connectHandler", new ConnectHandler());
                     }
                 });
 
-        // 4. 绑定端口
         serverChannel = bootstrap.bind(config.getPort()).sync().channel();
         log.info("消息队列服务端启动成功，端口：{}，SSL启用：{}", config.getPort(), sslContext != null);
 
-        // 5. 注册关闭钩子（优雅关闭）
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
-    /**
-     * 优雅关闭（等待正在处理的任务完成）
-     */
     public void shutdown() {
         log.info("开始优雅关闭服务端...");
         try {
-            // 1. 关闭服务端通道（停止接收新连接）
-            if (serverChannel != null) {
-                serverChannel.close().sync(5, TimeUnit.SECONDS);
+            if (serverChannel != null && serverChannel.isOpen()) {
+                boolean closed = serverChannel.close().await(5, TimeUnit.SECONDS);
+                if (!closed) {
+                    log.warn("服务端通道关闭超时，强制关闭");
+                }
             }
-            // 2. 关闭事件循环组（等待现有任务完成）
-            workerGroup.shutdownGracefully(10, 30, TimeUnit.SECONDS);
-            bossGroup.shutdownGracefully(10, 30, TimeUnit.SECONDS);
+
+            if (!workerGroup.isShuttingDown()) {
+                workerGroup.shutdownGracefully(10, 30, TimeUnit.SECONDS).sync();
+            }
+
+            if (!bossGroup.isShuttingDown()) {
+                bossGroup.shutdownGracefully(10, 30, TimeUnit.SECONDS).sync();
+            }
+
             log.info("服务端已优雅关闭");
         } catch (Exception e) {
-            log.error("服务端关闭失败", e);
+            log.error("服务端关闭异常，强制终止", e);
+            workerGroup.shutdownNow();
+            bossGroup.shutdownNow();
         }
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, IOException, UnrecoverableEntryException, CertificateException, KeyStoreException, NoSuchAlgorithmException {
         new MessageQueueServer().start();
     }
 }

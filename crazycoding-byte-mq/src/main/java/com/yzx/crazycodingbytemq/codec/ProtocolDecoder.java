@@ -48,6 +48,7 @@ public class ProtocolDecoder extends ByteToMessageDecoder {
         // 5. 校验消息体长度（防止超大消息导致OOM）
         int bodyLength = in.readInt();
         if (bodyLength < 0 || bodyLength > maxFrameLength) {
+            ctx.close();
             throw new DecoderException("消息体长度非法（实际=" + bodyLength + "，最大允许=" + maxFrameLength + "）");
         }
 

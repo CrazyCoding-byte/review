@@ -56,7 +56,7 @@ public class ClientConnectionPool {
                 channel.pipeline()
                         .addLast(sslContext.newHandler(channel.alloc(), host, port)) // SSL处理器
                         .addLast(new IdleStateHandler(0, config.getHeartbeatTimeout().getSeconds(), 0, TimeUnit.SECONDS))
-                        .addLast(new ProtocolDecoder())
+                        .addLast(new ProtocolDecoder(config.getMaxFrameLength()))
                         .addLast(new ProtocolEncoder())
                         .addLast(new HeartbeatHandler())
                         .addLast(new ClientResponseHandler());

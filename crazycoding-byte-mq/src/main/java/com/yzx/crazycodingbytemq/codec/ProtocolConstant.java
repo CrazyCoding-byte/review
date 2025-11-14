@@ -12,6 +12,6 @@ public interface ProtocolConstant {
     int MAGIC = 0xCAFEBABE;
     //协议版本
     byte Version = 0x01;
-    //帧头长度：魔数(4字节) + 版本(1字节) + 消息体长度(4字节) + 消息类型(1字节)
-    int FRAME_HEADER_LENGTH = 16;
+    int FRAME_HEADER_LENGTH = 4 + 1 + 4 + 1; // 帧头长度（魔数4 + 版本1 + 长度4 + 类型1）
+    int HEARTBEAT_TIMEOUT_SECONDS = 30; // 心跳超时时间（30秒）
 }

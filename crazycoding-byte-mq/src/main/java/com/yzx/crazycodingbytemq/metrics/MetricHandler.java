@@ -22,31 +22,34 @@ public class MetricHandler extends ChannelInboundHandlerAdapter {
     private final MeterRegistry meterRegistry;
     // 消息接收计数器
     private final Counter messageReceivedCounter;
+    private final Counter messageErrorCounter; // 新增：消息处理错误计数
+    private final Counter connectionFailedCounter; // 新增：连接失败计数
     // 消息处理计时器
     private final Timer messageProcessTimer;
 
     // 静态方法：创建指标处理器
     public static MetricHandler create(MeterRegistry registry) {
-        Counter receivedCounter = Counter.builder("mq.communication.messages.received")
-                .description("收到的消息总数")
-                .register(registry);
-        Timer processTimer = Timer.builder("mq.communication.messages.processed")
-                .description("消息处理耗时")
-                .register(registry);
-        return new MetricHandler(registry, receivedCounter, processTimer);
+        return new MetricHandler(
+                registry,
+                Counter.builder("mq.messages.received").register(registry),
+                Counter.builder("mq.messages.errors").register(registry), // 错误计数
+                Counter.builder("mq.connections.failed").register(registry), // 连接失败计数
+                Timer.builder("mq.messages.processed").register(registry)
+        );
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        // 1. 计数+1
         messageReceivedCounter.increment();
-        // 2. 记录处理耗时
         long start = System.nanoTime();
         try {
-            ctx.fireChannelRead(msg); // 传递给下一个处理器
+            ctx.fireChannelRead(msg);
+        } catch (Exception e) {
+            messageErrorCounter.increment(); // 记录处理错误
+            log.error("消息处理异常", e);
+            throw e; // 继续向上传递，由上层处理
         } finally {
-            long duration = System.nanoTime() - start;
-            messageProcessTimer.record(duration, TimeUnit.NANOSECONDS);
+            messageProcessTimer.record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
         }
     }
 
@@ -67,14 +70,14 @@ public class MetricHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        //记录连接数错误(ssl握手失败、解码失败)
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        // 记录连接级错误（如SSL握手失败、解码失败）
         if (cause instanceof SSLException) {
             meterRegistry.counter("mq.ssl.errors").increment();
         } else if (cause instanceof DecoderException) {
             meterRegistry.counter("mq.decode.errors").increment();
         }
-        log.error("异常捕获：{}", cause.getMessage());
+        log.error("连接异常", cause);
         ctx.close(); // 异常连接直接关闭
     }
 }

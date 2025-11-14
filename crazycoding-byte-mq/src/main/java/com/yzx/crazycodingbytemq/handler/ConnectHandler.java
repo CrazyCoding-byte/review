@@ -44,7 +44,7 @@ public class ConnectHandler extends ChannelInboundHandlerAdapter {
         boolean success = true;
         String message = success ? "连接成功" : "连接失败";
         //构建连接响应
-        MqMessage.ConnectResponse connectResponse = new MqMessage.ConnectResponse()
+        MqMessage.ConnectResponse connectResponse = MqMessage.ConnectResponse.newBuilder()
                 .setSuccess(success)
                 .setMessage(message)
                 .setServerId(request.getClientId())
