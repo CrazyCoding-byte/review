@@ -22,7 +22,7 @@ public class ClientResponseHandler extends ChannelInboundHandlerAdapter {
                 case CONNECT_RESPONSE:
                     handleConnectResponse(frame);
                     return;
-                case BUSSINESS_MESSAGE:
+                case SEND_MESSAGE:
                     handleBusinessMessage(frame);
                     return;
                 default:

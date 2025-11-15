@@ -41,6 +41,7 @@ public class ConnectionManager {
     public static ConnectionManager getInstance() {
         return INSTANCE;
     }
+
     //连接存储
     private final Map<ChannelId, ConnectionMeta> conncetions = new ConcurrentHashMap<>();
     //客户端id映射
@@ -103,6 +104,24 @@ public class ConnectionManager {
         if (connectionMeta == null) return;
         connectionCount.decrementAndGet();
         log.info("连接注销:clientId={},当前连接数={}", connectionMeta.getClientId(), connectionCount.get());
+    }
+
+    /**
+     *根据clientId查询通道(后续发信息/推送)
+     */
+    public Channel getChannelByClientId(String clientId) {
+        ChannelId channelId = clientIdMapping.get(clientId);
+        if (channelId == null) return null;
+        return conncetions.get(channelId).getChannel();
+    }
+
+    /**
+     * 更新最后活跃时间
+     */
+    public void updateLastActiveTime(Channel channel) {
+        ConnectionMeta meta = conncetions.get(channel.id());
+        if (meta == null) return;
+        meta.setLastActiveTime(Instant.now());
     }
 
     @Data

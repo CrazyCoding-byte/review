@@ -1,7 +1,54 @@
 syntax = "proto3";
 // 注意：包名要和你的项目Java包对应（确保生成的类在正确包下）
 package com.yzx.crazycodingbytemq.model;
+// 消息ID生成规则：UUID（客户端生成，确保唯一）
+message SendMessageRequest {
+  string queue_name = 1; // 目标队列名（必填）
+  string message_id = 2; // 消息唯一ID（必填）
+  string message_body = 3; // 消息体（必填）
+  string producer_client_id = 4; // 生产者客户端ID（必填）
+  int32 priority = 5; // 消息优先级（可选，默认0）
+}
 
+message SendMessageResponse {
+  bool success = 1; // 发送结果
+  string message = 2; // 结果描述
+  string message_id = 3; // 对应请求的消息ID
+}
+
+message PullMessageRequest {
+  string queue_name = 1; // 要拉取的队列名（必填）
+  string consumer_client_id = 2; // 消费者客户端ID（必填）
+  int32 batch_size = 3; // 批量拉取数量（必填，最大100）
+}
+
+message PullMessageResponse {
+  bool success = 1; // 拉取结果
+  string message = 2; // 结果描述
+  repeated MessageItem message_list = 3; // 消息列表
+}
+
+// 单个消息项
+message MessageItem {
+  string message_id = 1; // 消息ID
+  string message_body = 2; // 消息体
+  string queue_name = 3; // 队列名
+  int32 priority = 4; // 优先级
+  int64 create_time = 5; // 创建时间戳（毫秒）
+}
+
+// 消息消费确认请求
+message MessageAckRequest {
+  string queue_name = 1; // 队列名
+  string consumer_client_id = 2; // 消费者客户端ID
+  string message_id = 3; // 要确认的消息ID
+}
+
+message MessageAckResponse {
+  bool success = 1;
+  string message = 2;
+  string message_id = 3;
+}
 // 客户端连接请求消息（对应ConnectionManager中register方法的参数）
 message ConnectRequest {
   string clientId = 1;      // 客户端唯一标识（如producer-1、consumer-2）
@@ -14,4 +61,12 @@ message ConnectResponse {
   bool success = 1;         // 连接是否成功
   string message = 2;       // 响应提示（如"连接成功"、"客户端ID已存在"）
   string serverId = 3;      // 服务端节点ID
+}
+// 心跳消息（保留，不改动）
+message HeartbeatRequest {
+  string client_id = 1;
+}
+
+message HeartbeatResponse {
+  bool success = 1;
 }

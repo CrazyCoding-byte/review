@@ -21,7 +21,17 @@ public enum MessageTypeEnum {
 
     HEARTERBEAT_RESPONSE((byte) 0x04, "服务端心跳响应"),
 
-    BUSSINESS_MESSAGE((byte) 0x05, "业务消息");
+    SEND_MESSAGE((byte) 0x05, "业务消息"),
+
+    SEND_MESSAGE_RESPONSE((byte) 0x06, "发送消息响应"),
+
+    PULL_MESSAGE((byte) 0x07, "拉取消息请求"),
+
+    PULL_MESSAGE_RESPONSE((byte) 0x08, "拉取消息响应"),
+
+    MESSAGE_ACK((byte) 0x09, "消息消费确认请求"),
+
+    MESSAGE_ACK_RESPONSE((byte) 0x10, "消息消费确认响应");
 
     private final byte code;
     private final String desc;

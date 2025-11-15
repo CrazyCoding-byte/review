@@ -4,8 +4,7 @@ import com.yzx.crazycodingbytemq.codec.ProtocolDecoder;
 import com.yzx.crazycodingbytemq.codec.ProtocolEncoder;
 import com.yzx.crazycodingbytemq.config.ConfigLoader;
 import com.yzx.crazycodingbytemq.config.ServerConfig;
-import com.yzx.crazycodingbytemq.handler.ConnectHandler;
-import com.yzx.crazycodingbytemq.handler.HeartbeatHandler;
+import com.yzx.crazycodingbytemq.handler.*;
 import com.yzx.crazycodingbytemq.metrics.MetricHandler;
 import com.yzx.crazycodingbytemq.ssl.SslContextFactory;
 import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
@@ -68,7 +67,8 @@ public class MessageQueueServer {
     }
 
     public void start() throws InterruptedException, IOException, UnrecoverableEntryException, CertificateException, KeyStoreException, NoSuchAlgorithmException {
-        SslContext sslContext = SslContextFactory.createServerSslContext();
+        // 初始化SSL上下文（为空则不启用SSL）
+        SslContext sslContext = config.isSslEnable() ? SslContextFactory.createServerSslContext() : null;
 
         ServerBootstrap bootstrap = new ServerBootstrap()
                 .group(bossGroup, workerGroup)
@@ -102,6 +102,9 @@ public class MessageQueueServer {
                         pipeline.addLast("heartbeatHandler", new HeartbeatHandler());
                         // 修复：补全ConnectHandler实例化
                         pipeline.addLast("connectHandler", new ConnectHandler());
+                        pipeline.addLast("sendMessageHandler",new SendMessageHandler());
+                        pipeline.addLast("pullMessageHandler", new PullMessageHandler());
+                        pipeline.addLast("messageAckHandler", new MessageAckHandler());
                     }
                 });
 
