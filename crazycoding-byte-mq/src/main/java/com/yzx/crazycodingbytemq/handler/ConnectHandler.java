@@ -25,7 +25,6 @@ import java.util.UUID;
 public class ConnectHandler extends ChannelInboundHandlerAdapter {
     private final ConnectionManager connectionManager = ConnectionManager.getInstance();
 
-
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (!(msg instanceof ProtocolFrame frame)) {
@@ -41,10 +40,10 @@ public class ConnectHandler extends ChannelInboundHandlerAdapter {
         MqMessage.ConnectRequest request = null;
         try {
             request = parseAndValidateRequest(frame);
-            log.info("受到连接的请求:clientId{},clientType={}", request.getClientId(), request.getClientType());
+            log.info("收到连接的请求:clientId{},clientType={}", request.getClientId(), request.getClientType());
             //注册连接到请求管理中心
             boolean register = connectionManager.register(ctx.channel(), request);
-            log.info("受到连接请求:clientdId={},clientType={}", request.getClientId(), request.getClientType());
+            log.info("收到连接请求:clientdId={},clientType={}", request.getClientId(), request.getClientType());
             // 3. 构建响应
             String message = register ? "连接成功" : "连接失败（连接数超限或ClientId冲突）";
             MqMessage.ConnectResponse connectResponse = MqMessage.ConnectResponse.newBuilder()

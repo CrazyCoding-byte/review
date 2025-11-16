@@ -43,7 +43,7 @@ public class ConnectionManager {
     }
 
     //连接存储
-    private final Map<ChannelId, ConnectionMeta> conncetions = new ConcurrentHashMap<>();
+    private final Map<ChannelId, ConnectionMeta> connections  = new ConcurrentHashMap<>();
     //客户端id映射
     private final Map<String, ChannelId> clientIdMapping = new ConcurrentHashMap<>();
     //当前连接数
@@ -82,7 +82,7 @@ public class ConnectionManager {
         meta.setConnectTime(Instant.now());
         meta.setLastActiveTime(Instant.now());
         meta.setClientType(request.getClientType());
-        conncetions.put(channelId, meta);
+        connections.put(channelId, meta);
         //连接关闭自动注销
         channel.closeFuture().addListener(future -> {
             unregister(channel);
@@ -100,10 +100,14 @@ public class ConnectionManager {
     public void unregister(Channel channel) {
         if (channel == null) return;
         ChannelId id = channel.id();
-        ConnectionMeta connectionMeta = conncetions.remove(id);
-        if (connectionMeta == null) return;
+        ConnectionMeta connectionMeta = connections.remove(id);
+        if (connectionMeta == null){
+            log.warn("注销未知连接: channelId={}", id);
+            return;
+        }
         connectionCount.decrementAndGet();
         log.info("连接注销:clientId={},当前连接数={}", connectionMeta.getClientId(), connectionCount.get());
+        clientIdMapping.remove(connectionMeta.getClientId());
     }
 
     /**
@@ -112,14 +116,15 @@ public class ConnectionManager {
     public Channel getChannelByClientId(String clientId) {
         ChannelId channelId = clientIdMapping.get(clientId);
         if (channelId == null) return null;
-        return conncetions.get(channelId).getChannel();
+        ConnectionMeta meta = connections.get(channelId);
+        return meta != null ? meta.getChannel() : null;
     }
 
     /**
      * 更新最后活跃时间
      */
     public void updateLastActiveTime(Channel channel) {
-        ConnectionMeta meta = conncetions.get(channel.id());
+        ConnectionMeta meta = connections.get(channel.id());
         if (meta == null) return;
         meta.setLastActiveTime(Instant.now());
     }
