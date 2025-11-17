@@ -2,8 +2,10 @@ package com.yzx.crazycodingbytemq.store;
 
 import com.yzx.crazycodingbytemq.config.MessageStoreConfig;
 import com.yzx.crazycodingbytemq.model.MqMessage;
+import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
 
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.CompletableFuture;
@@ -45,9 +47,9 @@ public abstract class AbstractIndustrialMessageStore implements MessageStoreStra
         }
     }
 
+
     //计算消息校验和
-    protected byte[] calculateCheckSum(MqMessage.MessageItem messageItem) {
-        byte[] byteArray = messageItem.toByteArray();
+    protected byte[] calculateCheckSum(byte[] byteArray) {
         if (config.getChecksumAlgorithm() == MessageStoreConfig.ChecksumAlgorithm.MD5) {
             synchronized (md5Digest) {
                 return md5Digest.digest(byteArray);
@@ -68,7 +70,7 @@ public abstract class AbstractIndustrialMessageStore implements MessageStoreStra
 
     //验证校验和
     protected boolean verifyChecksum(MqMessage.MessageItem messageItem, byte[] checksum) {
-        byte[] calculated = calculateCheckSum(messageItem);
+        byte[] calculated = calculateCheckSum(messageItem.toByteArray());
         if (calculated.length != checksum.length) {
             return false;
         }
@@ -88,5 +90,5 @@ public abstract class AbstractIndustrialMessageStore implements MessageStoreStra
     protected abstract void initCleanupScheduler();
 
     // 刷盘操作（根据配置的刷盘策略）
-    protected abstract CompletableFuture<Boolean> flushBuffer();
+    protected abstract CompletableFuture<Boolean> flushBuffer(String queueName);
 }

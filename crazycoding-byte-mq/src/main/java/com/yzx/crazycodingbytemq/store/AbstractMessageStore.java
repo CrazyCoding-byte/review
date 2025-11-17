@@ -22,12 +22,6 @@ public abstract class AbstractMessageStore implements MessageStoreStrategy {
             r -> new Thread(r, "message-store-worker")
     );
 
-    // 计算消息校验和（防文件损坏）
-    protected long calculateChecksum(MqMessage.MessageItem message) {
-        String content = message.getMessageId() + message.getMessageBody() + message.getQueueName();
-        return content.hashCode() ^ System.currentTimeMillis();
-    }
-
     @Override
     public CompletableFuture<Boolean> save(MqMessage.MessageItem message) {
         return CompletableFuture.supplyAsync(() -> {
