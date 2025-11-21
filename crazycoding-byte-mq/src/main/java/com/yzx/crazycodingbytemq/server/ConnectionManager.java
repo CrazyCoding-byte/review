@@ -37,11 +37,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ConnectionManager {
     //单例模式(生产级可用Dagger等依赖注入)
     private static final ConnectionManager INSTANCE = new ConnectionManager();
-
     public static ConnectionManager getInstance() {
         return INSTANCE;
     }
-
     //连接存储
     private final Map<ChannelId, ConnectionMeta> connections  = new ConcurrentHashMap<>();
     //客户端id映射

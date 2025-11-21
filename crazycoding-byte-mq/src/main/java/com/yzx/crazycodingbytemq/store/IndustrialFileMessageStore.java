@@ -1,5 +1,6 @@
 package com.yzx.crazycodingbytemq.store;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.yzx.crazycodingbytemq.codec.ProtocolConstant;
 import com.yzx.crazycodingbytemq.config.MessageStoreConfig;
 import com.yzx.crazycodingbytemq.model.MqMessage;
@@ -12,17 +13,19 @@ import com.yzx.crazycodingbytemq.codec.ProtocolFrame;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
+
+import static com.sun.org.apache.xml.internal.serializer.utils.Utils.messages;
 
 /**
  * @className: IndustrialFileMessageStore
@@ -96,6 +99,9 @@ public class IndustrialFileMessageStore extends AbstractIndustrialMessageStore {
         );
     }
 
+    /*
+     *刷盘操作当缓存区数据不够时候，将数据写入磁盘文件，并清空缓存区。
+     */
     @Override
     protected CompletableFuture<Boolean> flushBuffer(String queueName) {
         return CompletableFuture.supplyAsync(() -> {
@@ -124,23 +130,80 @@ public class IndustrialFileMessageStore extends AbstractIndustrialMessageStore {
         context.dataChannel.close();
         String timestamp = LocalDate.now().toString().replace("-", "");
         long seq = context.dataFileSeq.incrementAndGet();
-        context.dataDir.resolve()
+        Path newDataFile = context.dataDir.resolve(String.format(FILE_NAME_PATTERN, context.queueName, timestamp, seq));
+        context.dataChannel = FileChannel.open(newDataFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
     }
 
     @Override
-    public CompletableFuture<Boolean> save(MqMessage.MessageItem messageItem) {
+    public CompletableFuture<MessageStoreStrategy.StoreResult> save(ProtocolFrame protocolFrame, String messageId) {
         return CompletableFuture.supplyAsync(() -> {
             globalWriteLock.lock();
             try {
+                MqMessage.MessageItem messageItem = MqMessage.MessageItem.parseFrom(protocolFrame.getBody());
                 String queueName = messageItem.getQueueName();
-                QueueStoreContext orCreateQueueContext = getOrCreateQueueContext(queueName);
+                QueueStoreContext context = getOrCreateQueueContext(queueName);
+                ByteBuffer buffer = getOrCreateQueueBuffer(queueName);
+                AtomicLong counter = getOrCreateBatchCounter(queueName);
+                //1.生成存储偏移量
+                long offset = context.maxOffset.incrementAndGet();
+                //2.计算校验和(覆盖整个ProtocolFrame+偏移量)
+                byte[] checksum = calculateFrameChecksum(protocolFrame, offset);
+                //3.写入内存缓冲区
+                writeToBuffer(buffer, offset, protocolFrame, checksum);
+                //4.写入WAL文件日志(与传输层格式一致,便于恢复)
+                writeToWAL(context, offset, protocolFrame, checksum);
+                //5.检查批量刷盘条件
+                if (counter.incrementAndGet() >= config.getBatchFlushThreshold()) {
+                    flushBuffer(queueName).join();
+                    counter.set(0);
+                }
+                return new MessageStoreStrategy.StoreResult(true, offset, messageId, null);
+            } catch (InvalidProtocolBufferException e) {
+                log.error("存储ProtocolFrame失败", e);
+                return new MessageStoreStrategy.StoreResult(false, -1, messageId, e);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } finally {
+                globalWriteLock.unlock();
             }
         });
     }
 
     @Override
-    public CompletableFuture<Boolean> batchSave(List<MqMessage.MessageItem> messageItems) {
-        return null;
+    public CompletableFuture<MessageStoreStrategy.BatchStoreResult> batchSave(List<MqMessage.MessageItem> messageItems) {
+        //批量存储时间基于ProtocolFrame构建
+        return CompletableFuture.supplyAsync(() -> {
+            globalWriteLock.lock();
+            try {
+                if (messageItems.isEmpty()) {
+                    return new MessageStoreStrategy.BatchStoreResult(true, 0, -1, null);
+                }
+                MqMessage.MessageItem messageItem = messageItems.get(0);
+                String queueName = messageItem.getQueueName();
+                QueueStoreContext context = getOrCreateQueueContext(queueName);
+                long startOffset = context.maxOffset.get() + 1;
+                int successCount = 0;
+                for (MqMessage.MessageItem msg : messageItems) {
+                    try {
+                        ProtocolFrame protocolFrame = new ProtocolFrame(ProtocolConstant.MAGIC,
+                                ProtocolConstant.Version, msg.toByteArray().length, (byte) 0x01, msg.toByteArray());
+                        //复用单条存储逻辑
+                        save(protocolFrame, msg.getMessageId()).join();
+                        successCount++;
+                    } catch (Exception e) {
+                        log.error("存储ProtocolFrame失败", e);
+                    }
+                }
+                return new MessageStoreStrategy.BatchStoreResult(
+                        successCount == messageItems.size(),
+                        successCount,
+                        startOffset,
+                        null
+                );
+            } finally {
+                globalWriteLock.unlock();
+            }
+        });
     }
 
     @Override
@@ -150,7 +213,42 @@ public class IndustrialFileMessageStore extends AbstractIndustrialMessageStore {
 
     @Override
     public void cleanExpiredFiles() {
+        LocalDate localDate = LocalDate.now().minusDays(config.getFileRetentionDays());
+        Path basePath = Paths.get(config.getBaseDir());
+        try (DirectoryStream<Path> queueDirs = Files.newDirectoryStream(basePath)) {
+            for (Path dir : queueDirs) {
+                if (Files.isDirectory(dir)) {
+                    cleanExpiredFilesInDir(dir.resolve("wal"), localDate);
+                    cleanExpiredFilesInDir(dir.resolve("data"), localDate);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
+    /**
+     * 2. Files：Java 官方的 “文件操作工具箱”
+     * 为什么用：替代File类的createNewFile()、listFiles()等方法，API 更简洁，支持批量操作、目录遍历。
+     * 核心用法（MQ 中用到的）：
+     * Files.createDirectories(path)：创建目录（如果父目录不存在，自动创建，不用写循环）；
+     * Files.walkFileTree(path, 访问者)：遍历目录下所有文件（比如清理过期文件时用）；
+     * Files.delete(file)：删除文件；
+     * Files.newDirectoryStream(path)：遍历目录下的文件（比如读取所有 WAL 日志文件）。
+     * @param dir
+     * @param expireDate
+     * @throws IOException
+     */
+    private void cleanExpiredFilesInDir(Path dir, LocalDate expireDate) throws IOException {
+        if (!Files.exists(dir)) {
+            Files.walkFileTree(dir, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+
+
+                }
+            }
+        }
     }
 
     @Override
@@ -192,7 +290,7 @@ public class IndustrialFileMessageStore extends AbstractIndustrialMessageStore {
                 + frame.getBodyLength()  // 消息体
                 + 4; // TRAILER_MAGIC（4字节）
         if (buffer.remaining() < requiredSize) {
-            flushBuffer(buffer).join();
+            flushBuffer(buffer.toString()).join();
         }
 
         //1.写入传输层帧头(与网络传输格式完全一致)
@@ -205,13 +303,19 @@ public class IndustrialFileMessageStore extends AbstractIndustrialMessageStore {
         buffer.put(checksum);
         //3.写入传输层帧体
         buffer.put(frame.getBody()); // 对应ProtocolFrame.body
+        //4.写入尾部校验帧尾魔术
         buffer.putInt(ProtocolConstant.TRAILER_MAGIC);
     }
 
-    /**
-     *写入WAL预写日志(工业级可靠性核心)
+    /**ByteBuffer.allocate(容量)：创建指定大小的缓冲区；
+     buffer.putInt(值)/putLong(值)/put(字节数组)：往缓冲区写数据；
+     buffer.flip()：切换为 “读模式”（写完后，告诉缓冲区 “现在要从开头读了”）；
+     buffer.clear()：清空缓冲区，准备下次写；
+     buffer.remaining()：判断缓冲区还剩多少可用空间。
+     *写入WAL预写日志
      */
-    private void writeToWAL(QueueStoreContext queueContext, long offset, ProtocolFrame frame, byte[] checksum) throws IOException {
+    private void writeToWAL(QueueStoreContext queueContext, long offset, ProtocolFrame frame, byte[] checksum) throws
+            IOException {
         //检查WAL文件大小,触发轮转
         if (queueContext.walChannel.size() >= config.getMaxFileSize()) {
             rotateWALFile(queueContext);
@@ -231,7 +335,6 @@ public class IndustrialFileMessageStore extends AbstractIndustrialMessageStore {
         // 尾部魔数
         walBuffer.putInt(ProtocolConstant.TRAILER_MAGIC);
         walBuffer.flip();
-
         // 写入WAL并根据策略刷盘
         queueContext.walChannel.write(walBuffer);
         if (config.getFlushPolicy() == MessageStoreConfig.FlushPolicy.SYNC) {
@@ -239,19 +342,6 @@ public class IndustrialFileMessageStore extends AbstractIndustrialMessageStore {
         }
     }
 
-    //计算出16字节的校验和 根据传输层帧头+存储偏移量+传输层帧体
-    private byte[] calculateFrameChecksum(ProtocolFrame frame, long offset) {
-        //校验范围:传输层帧头+存储偏移量+传输层帧体
-        ByteBuffer checkBuffer = ByteBuffer.allocate(ProtocolConstant.FRAME_HEADER_LENGTH + 8 + frame.getBodyLength());
-        checkBuffer.putInt(frame.getMagic());
-        checkBuffer.put(frame.getVersion());
-        checkBuffer.putInt(frame.getBodyLength());
-        checkBuffer.put(frame.getMessageType());
-        checkBuffer.putLong(offset);
-        checkBuffer.put(frame.getBody());
-        checkBuffer.flip();
-        return calculateCheckSum(checkBuffer.array());
-    }
 
     private void rotateWALFile(QueueStoreContext context) throws IOException {
         context.walChannel.force(true);
@@ -291,6 +381,15 @@ public class IndustrialFileMessageStore extends AbstractIndustrialMessageStore {
         return new ProtocolFrame(magic, version, bodyLength, messageType, body);
     }
 
+
+    private ByteBuffer getOrCreateQueueBuffer(String queueName) {
+        return queueBuffers.computeIfAbsent(queueName, name -> ByteBuffer.allocate(config.getBufferSize()));
+    }
+
+    private AtomicLong getOrCreateBatchCounter(String queueName) {
+        return batchCounter.computeIfAbsent(queueName, name -> new AtomicLong(0));
+    }
+
     private QueueStoreContext getOrCreateQueueContext(String queueName) {
         return queueContexts.computeIfAbsent(queueName, name -> {
             try {
@@ -316,6 +415,36 @@ public class IndustrialFileMessageStore extends AbstractIndustrialMessageStore {
                 );
             } catch (IOException e) {
                 throw new RuntimeException(e);
+            }
+        });
+    }
+
+    //计算出16字节的校验和 根据传输层帧头+存储偏移量+传输层帧体
+    private byte[] calculateFrameChecksum(ProtocolFrame frame, long offset) {
+        //校验范围:传输层帧头+存储偏移量+传输层帧体
+        ByteBuffer checkBuffer = ByteBuffer.allocate(ProtocolConstant.FRAME_HEADER_LENGTH + 8 + frame.getBodyLength());
+        checkBuffer.putInt(frame.getMagic());
+        checkBuffer.put(frame.getVersion());
+        checkBuffer.putInt(frame.getBodyLength());
+        checkBuffer.put(frame.getMessageType());
+        checkBuffer.putLong(offset);
+        checkBuffer.put(frame.getBody());
+        checkBuffer.flip();
+        return calculateCheckSum(checkBuffer.array());
+    }
+
+    private void cleanExpireFilesInDir(Path dir, LocalDate expire) throws IOException {
+        if (!Files.exists(dir)) return;
+        Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                LocalDate createDate = Instant.ofEpochMilli(attrs.creationTime().toMillis())
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+                if (createDate.isBefore(expire)) {
+                    Files.delete(file);
+                }
+                return FileVisitResult.CONTINUE;
             }
         });
     }

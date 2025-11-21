@@ -4,7 +4,7 @@ import com.yzx.crazycodingbytemq.model.MqMessage;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.List;
-
+import com.yzx.crazycodingbytemq.codec.ProtocolFrame;
 /**
  * @className: MessageStoreStrategy
  * @author: yzx
@@ -18,14 +18,14 @@ public interface MessageStoreStrategy {
      * @param messageItem
      * @return
      */
-    CompletableFuture<Boolean> save(MqMessage.MessageItem messageItem);
+    CompletableFuture<MessageStoreStrategy.StoreResult> save(ProtocolFrame frame,String messageId);
 
     /**
      * 批量保存消息
      * @param messageItems
      * @return
      */
-    CompletableFuture<Boolean> batchSave(List<MqMessage.MessageItem> messageItems);
+    CompletableFuture<MessageStoreStrategy.BatchStoreResult> batchSave(List<MqMessage.MessageItem> messageItems);
 
     /**
      * 删除消息
