@@ -25,7 +25,6 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static com.sun.org.apache.xml.internal.serializer.utils.Utils.messages;
 
 /**
  * @className: IndustrialFileMessageStore
