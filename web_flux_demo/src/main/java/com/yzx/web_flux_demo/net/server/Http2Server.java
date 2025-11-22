@@ -1,19 +1,18 @@
 package com.yzx.web_flux_demo.net.server;
 
-import com.yzx.web_flux_demo.net.config.Http2Response;
-import com.yzx.web_flux_demo.net.config.Router;
+import com.yzx.web_flux_demo.net.config.*;
 import com.yzx.web_flux_demo.net.factory.TlsContextFactory;
+import com.yzx.web_flux_demo.net.handler.Http1RequestHandler;
 import com.yzx.web_flux_demo.net.handler.Http2RequestHandler;
 import com.yzx.web_flux_demo.net.metrics.MetricsCollector;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.HttpServerUpgradeHandler;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http2.Http2FrameCodec;
 import io.netty.handler.codec.http2.Http2FrameCodecBuilder;
 import io.netty.handler.codec.http2.Http2MultiplexHandler;
@@ -21,9 +20,12 @@ import io.netty.handler.codec.http2.Http2ServerUpgradeCodec;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -42,7 +44,7 @@ public class Http2Server {
     private EventLoopGroup workerGroup;
     private Channel serverChannel;
 
-    public Http2Server(int port,  Router router, MetricsCollector metrics) {
+    public Http2Server(int port, Router router, MetricsCollector metrics) {
         this.port = port;
         this.router = router;
         this.metrics = metrics;
@@ -63,62 +65,39 @@ public class Http2Server {
                         @Override
                         protected void initChannel(SocketChannel ch) {
                             ChannelPipeline pipeline = ch.pipeline();
-
+                            // 1. HTTP/1.1 编解码和聚合
                             HttpServerCodec httpServerCodec = new HttpServerCodec();
-                            pipeline.addLast(httpServerCodec);
-                            pipeline.addLast(new HttpObjectAggregator(65536));
-
-                            // HTTP/2 frame codec & multiplex handler 创建
+                            pipeline.addLast(httpServerCodec); //讲字节码解析为FullHttpRequest
+                            pipeline.addLast(new HttpObjectAggregator(65536)); // 聚合请求体
+                            // 2. HTTP/2 升级配置
                             Http2FrameCodec http2FrameCodec = Http2FrameCodecBuilder.forServer().build();
                             Http2MultiplexHandler http2MultiplexHandler = new Http2MultiplexHandler(
                                     new ChannelInitializer<Channel>() {
                                         @Override
                                         protected void initChannel(Channel ch) {
                                             ch.pipeline().addLast(
-                                                    new IdleStateHandler(0,0,30, TimeUnit.SECONDS),
-                                                    new Http2RequestHandler(router, metrics /*, config 如果需要 */)
+                                                    new IdleStateHandler(0, 0, 30, TimeUnit.SECONDS),
+                                                    new Http2RequestHandler(router, metrics)
                                             );
                                         }
                                     }
                             );
-
-                            // IMPORTANT: 把 multiplex handler 也传入 upgrade codec
-                            Http2ServerUpgradeCodec http2UpgradeCodec =
-                                    new Http2ServerUpgradeCodec(http2FrameCodec, http2MultiplexHandler);
-
                             HttpServerUpgradeHandler.UpgradeCodecFactory upgradeFactory = protocol -> {
+                                // 只支持 h2c 协议升级
                                 if ("h2c".equals(protocol)) {
-                                    return http2UpgradeCodec;
+                                    return new Http2ServerUpgradeCodec(http2FrameCodec, http2MultiplexHandler);
                                 }
+                                // 不支持的协议返回 null
                                 return null;
                             };
-
-                            HttpServerUpgradeHandler upgradeHandler =
-                                    new HttpServerUpgradeHandler(httpServerCodec, upgradeFactory, 65536);
-
+                            HttpServerUpgradeHandler upgradeHandler = new HttpServerUpgradeHandler(
+                                    httpServerCodec,
+                                    upgradeFactory,  // 使用工厂类替代列表
+                                    65536  // maxContentLength
+                            );
                             pipeline.addLast("upgradeHandler", upgradeHandler);
-
-                            // 添加一个简单的 HTTP/1.1 fallback handler（用于 Postman 或普通 HTTP 请求）
-                            pipeline.addLast("http1Handler", new SimpleChannelInboundHandler<io.netty.handler.codec.http.FullHttpRequest>() {
-                                @Override
-                                protected void channelRead0(ChannelHandlerContext ctx, io.netty.handler.codec.http.FullHttpRequest req) {
-                                    // 这里可以直接使用 router 处理，或简单返回 200
-                                    io.netty.handler.codec.http.DefaultFullHttpResponse resp =
-                                            new io.netty.handler.codec.http.DefaultFullHttpResponse(
-                                                    req.protocolVersion(),
-                                                    io.netty.handler.codec.http.HttpResponseStatus.OK,
-                                                    ctx.alloc().buffer().writeBytes("{\"ok\":true}".getBytes())
-                                            );
-                                    resp.headers().set("content-type", "application/json");
-                                    resp.headers().setInt("content-length", resp.content().readableBytes());
-                                    ctx.writeAndFlush(resp).addListener(ChannelFutureListener.CLOSE);
-                                }
-
-                                @Override
-                                public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                                    ctx.close();
-                                }
-                            });
+                            // 4. HTTP/1.1 降级处理器（必须放在升级处理器之后）
+                            pipeline.addLast("http1Handler", new Http1RequestHandler(router, metrics));
                         }
                     });
 
@@ -162,7 +141,6 @@ public class Http2Server {
                     responseBody.getBytes()
             ));
         });
-
         // 示例2：GET /user/{id}
         router.register("GET", "/user/{id}", (request, callback) -> {
             String userId = request.getPathParams().get("id");

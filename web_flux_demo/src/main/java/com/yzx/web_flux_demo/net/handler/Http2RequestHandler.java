@@ -21,7 +21,6 @@ import java.util.Map;
  * @description:
  */
 /**
- * HTTP/2 请求处理器（XSimple 修正版）
  * 修复了流关联丢失、构造函数错误及异常处理逻辑
  */
 @Slf4j
@@ -37,7 +36,6 @@ public class Http2RequestHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         Http2FrameStream currentStream = (msg instanceof Http2StreamFrame) ? ((Http2StreamFrame) msg).stream() : null;
-
         try {
             if (msg instanceof Http2HeadersFrame) {
                 handleHeadersFrame(ctx, (Http2HeadersFrame) msg);

@@ -1,5 +1,7 @@
 package com.yzx.web_flux_demo.net.config;
 
+import com.yzx.web_flux_demo.net.config.core.Request;
+
 /**
  * @className: Http2RequestHandler
  * @author: yzx
@@ -9,5 +11,5 @@ package com.yzx.web_flux_demo.net.config;
  */
 @FunctionalInterface
 public interface RequestHandler {
-    void handle(Http2Request request, Http2ResponseCallback callback);
+    void handle(Request request, Http2ResponseCallback callback);
 }
