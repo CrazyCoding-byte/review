@@ -92,4 +92,3 @@ public class Group {
         return new Group(this.prefix + subPrefix, this.middlewares, this.router);
     }
 }
-}

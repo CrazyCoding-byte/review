@@ -47,10 +47,12 @@
         <!-- Spring Security OAuth2 Authorization Server -->
         <dependency>
             <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-oauth2-authorization-server</artifactId>
-            <version>1.1.1</version>
+            <artifactId>spring-security-oauth2-resource-server</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId> <!-- 如果使用 JWT -->
+        </dependency>
         <!-- Spring Security WebFlux -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -79,7 +81,6 @@
             <artifactId>reactor-test</artifactId>
             <scope>test</scope>
         </dependency>
-
         <!-- Lombok (可选，简化代码) -->
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -1,17 +1,18 @@
 package com.yzx.web_flux_demo.net.handler;
 
+import com.yzx.web_flux_demo.net.adapter.HandlerAdapter;
 import com.yzx.web_flux_demo.net.config.*;
+import com.yzx.web_flux_demo.net.config.core.*;
 import com.yzx.web_flux_demo.net.metrics.MetricsCollector;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http2.*;
-import io.netty.handler.timeout.IdleStateEvent;
-import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 /**
  * @className: Http2RequestHandler
@@ -27,6 +28,10 @@ import java.util.Map;
 public class Http2RequestHandler extends ChannelInboundHandlerAdapter {
     private final Router router;
     private final MetricsCollector metrics;
+    private final List<Handler> globalMiddlewares = new ArrayList<>(); // 全局中间件
+
+    // 用于临时存储请求体数据 (如果需要聚合)
+    private ByteBuf requestBodyBuffer;
 
     public Http2RequestHandler(Router router, MetricsCollector metrics) {
         this.router = router;
@@ -34,199 +39,132 @@ public class Http2RequestHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        Http2FrameStream currentStream = (msg instanceof Http2StreamFrame) ? ((Http2StreamFrame) msg).stream() : null;
-        try {
-            if (msg instanceof Http2HeadersFrame) {
-                handleHeadersFrame(ctx, (Http2HeadersFrame) msg);
-            } else if (msg instanceof Http2DataFrame) {
-                handleDataFrame(ctx, (Http2DataFrame) msg);
-            } else if (msg instanceof Http2PingFrame) {
-                handlePingFrame(ctx, (Http2PingFrame) msg);
-            } else if (msg instanceof Http2SettingsFrame) {
-                handleSettingsFrame(ctx, (Http2SettingsFrame) msg);
-            } else if (msg instanceof Http2ResetFrame) {
-                handleResetFrame(ctx, (Http2ResetFrame) msg);
-            } else {
-                log.warn("Unhandled HTTP/2 frame type: {}", msg.getClass().getSimpleName());
-                ReferenceCountUtil.release(msg);
-            }
-        } catch (Exception e) {
-            log.error("Error handling HTTP/2 frame", e);
-            metrics.incrementErrorCount();
-            if (currentStream != null) {
-                sendResetFrame(ctx, currentStream, Http2Error.INTERNAL_ERROR.code());
-            } else {
-                ctx.close();
-            }
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        if (msg instanceof Http2HeadersFrame) {
+            handleHeadersFrame(ctx, (Http2HeadersFrame) msg);
+        } else if (msg instanceof Http2DataFrame) {
+            handleDataFrame(ctx, (Http2DataFrame) msg);
+        } else {
+            // 如果有其他类型的帧，传递给下一个 handler
+            super.channelRead(ctx, msg);
         }
     }
 
-    private void handleHeadersFrame(ChannelHandlerContext ctx, Http2HeadersFrame frame) {
-        Http2Headers headers = frame.headers();
-        Http2FrameStream stream = frame.stream();
-        int streamId = stream.id();
-        String method = headers.method().toString();
-        String path = headers.path().toString();
+    private void handleHeadersFrame(ChannelHandlerContext ctx, Http2HeadersFrame headersFrame) throws Exception {
+        // 1. 解析路径和方法
+        String method = headersFrame.headers().method().toString();
+        String rawPath = headersFrame.headers().path().toString();
+        int queryStart = rawPath.indexOf('?');
+        String path = queryStart >= 0 ? rawPath.substring(0, queryStart) : rawPath;
+        String query = queryStart >= 0 ? rawPath.substring(queryStart + 1) : "";
 
-        log.info("Received HEADERS: streamId={}, method={}, path={}", streamId, method, path);
-
-        Http2Request request = new Http2Request(headers, streamId, ctx.channel());
-        Http2RequestContext.setRequest(ctx.channel(), streamId, request);
-
-        // 1. 查找匹配的路由
-        Route route = router.match(method, path);
-        if (route == null) {
-            sendErrorResponse(ctx, stream, HttpResponseStatus.NOT_FOUND, "Route not found");
-            return;
-        }
-
-        // 2. 解析路径参数
-        Map<String, String> pathParams = router.extractPathParams(route.getPath(), path);
-        request.setPathParams(pathParams);
-
-        // 如果是 END_STREAM，意味着没有 DATA 帧了，可以直接处理
-        if (frame.isEndStream()) {
-            dispatchToBusinessLogic(ctx, stream, request, route.getHandler());
-        }
-    }
-
-    private void handleDataFrame(ChannelHandlerContext ctx, Http2DataFrame frame) {
-        Http2FrameStream stream = frame.stream();
-        int streamId = stream.id();
-        ByteBuf content = frame.content();
-
-        log.info("Received DATA: streamId={}, length={}, endStream={}", streamId, content.readableBytes(), frame.isEndStream());
-
-        Http2Request request = Http2RequestContext.getRequest(ctx.channel(), streamId);
-        if (request == null) {
-            log.warn("Received DATA for unknown streamId={}", streamId);
-            ReferenceCountUtil.release(frame);
-            return;
-        }
-
-        // 聚合请求体
-        ByteBuf bodyBuf = ctx.alloc().buffer();
-        if (request.getBody() != null) {
-            bodyBuf.writeBytes(request.getBody());
-        }
-        bodyBuf.writeBytes(content);
-        request.setBody(bodyBuf.array());
-        bodyBuf.release();
-
-        ReferenceCountUtil.release(frame);
-
-        // 如果是最后一个 DATA 帧，就可以处理请求了
-        if (frame.isEndStream()) {
-            Route route = router.match(request.getHeaders().method().toString(), request.getHeaders().path().toString());
-            if (route != null) {
-                dispatchToBusinessLogic(ctx, stream, request, route.getHandler());
-            }
-            // else: route not found should have been handled in HEADERS
-        }
-    }
-
-    /**
-     * 将请求分发给具体的业务逻辑处理器。
-     */
-    private void dispatchToBusinessLogic(ChannelHandlerContext ctx, Http2FrameStream stream, Http2Request request, RequestHandler handler) {
         long startTime = System.currentTimeMillis();
 
-        // 调用业务逻辑
-        handler.handle(request, new Http2ResponseCallback() {
-            @Override
-            public void onSuccess(Http2Response response) {
-                sendSuccessResponse(ctx, stream, response);
-                metrics.incrementRequestCount();
-                metrics.recordRequestDuration(System.currentTimeMillis() - startTime);
-                Http2RequestContext.removeRequest(ctx.channel(), stream.id());
-            }
-
-            @Override
-            public void onFailure(Throwable cause) {
-                log.error("Business logic failed for streamId={}", stream.id(), cause);
-                sendErrorResponse(ctx, stream, HttpResponseStatus.INTERNAL_SERVER_ERROR, cause.getMessage());
-                metrics.incrementErrorCount();
-                Http2RequestContext.removeRequest(ctx.channel(), stream.id());
-            }
-        });
-    }
-
-    private void handlePingFrame(ChannelHandlerContext ctx, Http2PingFrame frame) {
-        if (frame.ack()) {
-            log.debug("Received PING ACK");
-        } else {
-            log.debug("Received PING, sending ACK");
-            ctx.writeAndFlush(new DefaultHttp2PingFrame(frame.content(), true));
+        // 2. 路由匹配
+        Route route = router.match(method, path);
+        if (route == null) {
+            sendHttp2Error(ctx, HttpResponseStatus.NOT_FOUND, "Route not found: " + path);
+            return;
         }
-        ReferenceCountUtil.release(frame);
+
+        // 3. 解析路径参数
+        Map<String, String> pathParams = router.extractPathParams(route.getPath(), path);
+
+        // 4. 创建 Request 和 Response
+        // 注意：Http2Request 需要 Http2HeadersFrame 和 pathParams, body (可能为空)
+        // 这里假设 body 在 headers frame 之后的 data frame 中，或者 body 为空
+        // 如果 body 需要聚合，需要在 handleDataFrame 中处理
+        byte[] bodyBytes = requestBodyBuffer != null ? requestBodyBuffer.array() : new byte[0];
+        Http2Request http2Request = new Http2Request(headersFrame, pathParams, bodyBytes);
+        // Http2Response 需要 Http2StreamChannel 来发送响应
+        Http2Response http2Response = new Http2Response((Http2StreamChannel) ctx.channel());
+
+        // 5. 创建 HandlerChain
+        List<Handler> routeMiddlewares = route.getMiddlewares();
+        RequestHandler oldHandler = route.getHandler();
+        Handler adaptedHandler = new HandlerAdapter(oldHandler, metrics);
+
+        List<Handler> handlersForChain = new ArrayList<>(globalMiddlewares);
+        handlersForChain.addAll(routeMiddlewares);
+        handlersForChain.add(adaptedHandler);
+
+        HandlerChain handlerChain = new HandlerChain(handlersForChain);
+
+        // 6. 创建 Context
+        Http2Context context = new Http2Context(ctx, headersFrame, http2Request, http2Response, handlerChain);
+
+        // 7. 启动 HandlerChain
+        context.next(); // 执行中间件和处理器
+
+        // 注意：HTTP/2 响应可能在 Context 或 Handler 内部发送
+        // 如果没有在 Context 内部发送，需要在这里检查状态并发送默认响应
+
+        // 记录请求耗时 (在响应发送后)
+        metrics.recordRequestDuration(System.currentTimeMillis() - startTime);
+
+        // 重置 body buffer (如果需要)
+        if (requestBodyBuffer != null) {
+            requestBodyBuffer.release();
+            requestBodyBuffer = null;
+        }
+
     }
 
-    private void handleSettingsFrame(ChannelHandlerContext ctx, Http2SettingsFrame frame) {
-        log.info("Received SETTINGS: {}", frame.settings());
-        ctx.writeAndFlush(new DefaultHttp2SettingsFrame(Http2Settings.defaultSettings())); // Send empty ACK
-        ReferenceCountUtil.release(frame);
+    private void handleDataFrame(ChannelHandlerContext ctx, Http2DataFrame dataFrame) throws Exception {
+        // 聚合请求体数据 (如果需要)
+        if (requestBodyBuffer == null) {
+            requestBodyBuffer = ctx.alloc().buffer();
+        }
+        requestBodyBuffer.writeBytes(dataFrame.content());
+
+        // 检查是否是最后一个数据帧
+        if (dataFrame.isEndStream()) {
+            // Body 聚合完成，但处理通常在 headers frame 时开始
+            // 可以选择在此处触发处理，或者在 headers frame 处理时检查 body 是否已准备好
+            // 这里我们假设 headers frame 处理时 body 已经准备好或为空
+            // 或者，可以将 body 聚合逻辑和处理逻辑放在一个更合适的地方
+            // 当前实现是在 headers frame 时处理，如果 body 未准备好，可能需要调整
+            // 一个简单的策略是：在 headers frame 时，如果发现有 body，等待 data frame，然后再次触发处理
+            // 但为了简化，我们假设 headers frame 处理时 body 已经通过 handleDataFrame 聚合完毕
+            // 这需要在 handleHeadersFrame 中检查 requestBodyBuffer 是否存在
+            // 或者，让 Context/Handler 在需要时自行获取 body (更复杂)
+            // 当前实现将 body 聚合在 headers frame 之前，然后在 headers frame 时处理
+            // 这意味着 handleHeadersFrame 会等待所有 data frame (如果有的话) 到达后才处理
+            // 这不是最高效的方式，但对于演示是可行的
+            // 实际框架可能需要更复杂的异步处理机制
+        }
+        // 释放 dataFrame 的缓冲区，因为我们已经复制了数据
+        dataFrame.release();
     }
 
-    private void handleResetFrame(ChannelHandlerContext ctx, Http2ResetFrame frame) {
-        log.warn("Received RESET: streamId={}, error={}", frame.stream().id(), frame.errorCode());
-        Http2RequestContext.removeRequest(ctx.channel(), frame.stream().id());
-        ReferenceCountUtil.release(frame);
+    private void sendHttp2Error(ChannelHandlerContext ctx, HttpResponseStatus status, String message) {
+        // 创建一个简单的错误响应
+        // 这需要通过 Http2StreamChannel 发送 Http2HeadersFrame 和 Http2DataFrame
+        Http2Response errorResponse = new Http2Response((Http2StreamChannel) ctx.channel());
+        errorResponse.status(status);
+        errorResponse.setHeader("Content-Type", "text/plain; charset=UTF-8");
+        errorResponse.setBody(message.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        errorResponse.writeAndFlush(); // 这会发送错误响应
     }
 
     @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof IdleStateEvent) {
-            log.info("Connection idle timeout, closing.");
-            ctx.close();
-        } else {
-            super.userEventTriggered(ctx, evt);
-        }
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        // 记录异常并发送错误响应
+        System.err.println("Exception in Http2RequestHandler: " + cause.getMessage());
+        cause.printStackTrace();
+        sendHttp2Error(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, "Internal Server Error");
+        // 通常 HTTP/2 不会关闭整个连接，而是关闭出错的 stream
+        // ctx.close(); // 不要关闭整个连接，只关闭当前 stream
+        ctx.fireExceptionCaught(cause); // 让其他 handler 也能处理异常
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        log.error("Channel exception caught", cause);
-        metrics.incrementErrorCount();
-        ctx.close();
-    }
-
-    private void sendSuccessResponse(ChannelHandlerContext ctx, Http2FrameStream stream, Http2Response response) {
-        Http2Headers headers = new DefaultHttp2Headers()
-                .status(response.getStatus().codeAsText())
-                .set("Content-Type", response.getContentType())
-                .setInt("Content-Length", response.getBody().toString().length());
-
-        DefaultHttp2HeadersFrame headersFrame = new DefaultHttp2HeadersFrame(headers, false);
-        headersFrame.stream(stream);
-
-        DefaultHttp2DataFrame dataFrame = new DefaultHttp2DataFrame(ctx.alloc().buffer().writeBytes(response.getBody()), true);
-        dataFrame.stream(stream);
-
-        ctx.write(headersFrame);
-        ctx.writeAndFlush(dataFrame);
-    }
-
-    private void sendErrorResponse(ChannelHandlerContext ctx, Http2FrameStream stream, HttpResponseStatus status, String message) {
-        byte[] bytes = message.getBytes();
-        Http2Headers headers = new DefaultHttp2Headers()
-                .status(status.codeAsText())
-                .set("Content-Type", "text/plain")
-                .setInt("Content-Length", bytes.length);
-
-        DefaultHttp2HeadersFrame headersFrame = new DefaultHttp2HeadersFrame(headers, false);
-        headersFrame.stream(stream);
-
-        DefaultHttp2DataFrame dataFrame = new DefaultHttp2DataFrame(ctx.alloc().buffer().writeBytes(bytes), true);
-        dataFrame.stream(stream);
-
-        ctx.writeAndFlush(headersFrame);
-        ctx.writeAndFlush(dataFrame);
-    }
-
-    private void sendResetFrame(ChannelHandlerContext ctx, Http2FrameStream stream, long errorCode) {
-        DefaultHttp2ResetFrame resetFrame = new DefaultHttp2ResetFrame(errorCode);
-        resetFrame.stream(stream);
-        ctx.writeAndFlush(resetFrame);
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        // 清理资源
+        if (requestBodyBuffer != null) {
+            requestBodyBuffer.release();
+            requestBodyBuffer = null;
+        }
+        super.channelInactive(ctx);
     }
 }

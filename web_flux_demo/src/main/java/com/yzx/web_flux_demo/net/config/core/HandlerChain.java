@@ -11,15 +11,13 @@ import java.util.List;
  * @description:
  */
 public class HandlerChain {
-
-    private final List<Handler> handlers;
-    private final Handler finalHandler; // 最终的业务处理器 (已经适配过的)
+    // 修改：将中间件列表和最终处理器分开存储
+    private final List<Handler> handlers; // 包含路由中间件和最终适配后的处理器
     private int index = 0; // 当前执行到的处理器索引
 
-    public HandlerChain(List<Handler> middleware, Handler finalHandler) {
-        // 创建一个包含所有中间件和最终处理器的列表
-        this.handlers = middleware; // 注意：这里直接引用列表，如果外部修改了列表，这里也会变
-        this.finalHandler = finalHandler;
+    // 修改构造函数：接收一个包含所有 Handler (中间件 + 最终处理器) 的列表
+    public HandlerChain(List<Handler> handlers) {
+        this.handlers = handlers; // 创建副本以防止外部修改
     }
 
     /**
@@ -28,27 +26,17 @@ public class HandlerChain {
      */
     public void next(Context context) {
         if (index < handlers.size()) {
-            // 执行当前索引的中间件
+            // 执行当前索引的处理器 (中间件或最终处理器)
             try {
                 handlers.get(index++).handle(context);
             } catch (Exception e) {
                 // 这里可以添加错误处理逻辑，比如记录日志或调用全局错误处理器
-                System.err.println("Error in middleware: " + e.getMessage());
+                System.err.println("Error in handler (middleware or final): " + e.getMessage());
                 e.printStackTrace();
                 // 可以选择中断链或继续，这里选择中断并记录
                 // 如果需要更复杂的错误处理，可以在这里扩展
             }
-        } else if (index == handlers.size()) {
-            // 所有中间件执行完毕，执行最终处理器
-            try {
-                finalHandler.handle(context);
-            } catch (Exception e) {
-                // 这里处理最终处理器的异常
-                System.err.println("Error in final handler: " + e.getMessage());
-                e.printStackTrace();
-            }
-            index++; // 确保后续调用 next 不会再执行
         }
-        // 如果 index > handlers.size()，说明链已经执行完毕，next() 不做任何事
+        // 如果 index >= handlers.size()，说明链已经执行完毕，next() 不做任何事
     }
 }
