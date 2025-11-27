@@ -21,13 +21,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @WebServlet("/signin")
 public class SignInServlet extends HttpServlet {
     private static final ConcurrentHashMap<String, String> users = new ConcurrentHashMap<>();
-
     @PostConstruct
     public void init() {
         users.put("bob", "123456");
         users.put("alice", "alice123");
     }
-
     public void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         resp.setContentType("text/html");
         PrintWriter pw = resp.getWriter();
@@ -39,7 +37,6 @@ public class SignInServlet extends HttpServlet {
         pw.write("</form>");
         pw.flush();
     }
-
     // POST请求时处理用户登录:
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String name = req.getParameter("username");

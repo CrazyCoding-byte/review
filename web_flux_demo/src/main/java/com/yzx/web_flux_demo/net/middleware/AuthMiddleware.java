@@ -62,11 +62,9 @@ public class AuthMiddleware implements Middleware{
                 sendUnauthorizedResponse(response, context, "Missing or invalid Authorization header");
                 return; // 重要：中断链执行
             }
-
             // 2. 验证 Token (这里以 JWT 为例)
             // Spring Security 的 JwtDecoder 会解析并验证 JWT 的签名、过期时间等
             org.springframework.security.oauth2.jwt.Jwt decodedJwt = jwtDecoder.decode(token);
-
             // 3. 创建 Spring Security Authentication 对象 (示例：JwtAuthenticationToken)
             // 这个对象包含了用户信息和权限
             // 注意：JwtAuthenticationToken 的构造函数可能需要额外的参数，如 JwtGrantedAuthoritiesConverter
@@ -77,7 +75,6 @@ public class AuthMiddleware implements Middleware{
                     "sub" // nameAttributeKey
             );
             Authentication authentication = new JwtAuthenticationToken((Jwt) principal, Collections.emptyList()); // authorities 可以从 principal 获取或通过转换器生成
-
             // 4. 将认证信息存入 Context，供后续处理器使用
             context.set("authentication", authentication);
             context.set("principal", principal);
@@ -86,10 +83,8 @@ public class AuthMiddleware implements Middleware{
             // 如果需要角色信息
             // Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
             // context.set("roles", authorities.stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()));
-
             // 5. Token 有效，继续执行链
             context.next();
-
         } catch (org.springframework.security.oauth2.jwt.JwtException e) {
             // JWT 解码或验证失败
             System.err.println("JWT validation failed: " + e.getMessage());

@@ -4,6 +4,7 @@ import com.yzx.web_flux_demo.net.config.Http2ResponseCallback;
 import com.yzx.web_flux_demo.net.config.RequestHandler;
 import com.yzx.web_flux_demo.net.config.core.Context;
 import com.yzx.web_flux_demo.net.config.core.Handler;
+import com.yzx.web_flux_demo.net.config.core.Http2Response;
 import com.yzx.web_flux_demo.net.config.core.Response;
 import com.yzx.web_flux_demo.net.metrics.MetricsCollector;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -34,8 +35,8 @@ public class HandlerAdapter implements Handler {
             public void onSuccess(Http2Response http2Response) {
                 Response contextResponse = context.response();
                 contextResponse.status(http2Response.getStatus());
-                contextResponse.setHeader("Content-Type", http2Response.getContentType());
-                contextResponse.setBody(http2Response.getBody().array());
+                contextResponse.setHeader("Content-Type", "text/plain;charset=UTF-8");
+                contextResponse.setBody(http2Response.getBody());
 
                 if (metrics != null) {
                     metrics.recordRequestDuration(System.currentTimeMillis() - startTime);
