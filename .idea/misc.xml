@@ -3,7 +3,9 @@
   <component name="ExternalStorageConfigurationManager" enabled="true" />
   <component name="FrameworkDetectionExcludesConfiguration">
     <file type="web" url="file://$PROJECT_DIR$/crazycoding-byte-gateway" />
+    <file type="web" url="file://$PROJECT_DIR$/crazycoding-byte-http" />
     <file type="web" url="file://$PROJECT_DIR$/crazycoding-byte-mq" />
+    <file type="web" url="file://$PROJECT_DIR$/crazycoding-byte-orm" />
     <file type="web" url="file://$PROJECT_DIR$/crazycoding-byte-registerwithconfig" />
     <file type="web" url="file://$PROJECT_DIR$/esdemo" />
     <file type="web" url="file://$PROJECT_DIR$/gradledemo" />

@@ -15,11 +15,31 @@
       </GradleProjectSettings>
       <GradleProjectSettings>
         <option name="distributionType" value="LOCAL" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/crazycoding-byte-http" />
+        <option name="gradleHome" value="D:/gradle/gradle-9.0.0" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/crazycoding-byte-http" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="distributionType" value="LOCAL" />
         <option name="externalProjectPath" value="$PROJECT_DIR$/crazycoding-byte-mq" />
         <option name="gradleHome" value="D:/gradle/gradle-9.0.0" />
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$/crazycoding-byte-mq" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="distributionType" value="LOCAL" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/crazycoding-byte-orm" />
+        <option name="gradleHome" value="D:/gradle/gradle-9.0.0" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/crazycoding-byte-orm" />
           </set>
         </option>
       </GradleProjectSettings>

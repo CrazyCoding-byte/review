@@ -1,6 +1,7 @@
 package com.yzx.web_flux_demo.repository;
 
 import com.yzx.web_flux_demo.entity.*;
+import com.yzx.web_flux_demo.net.metrics.MetricsCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -55,12 +56,17 @@ public class ComplexUserService {
 
     private final MongoUserRepository userRepository;
     private final OrderRepository orderRepository;
-
     public ComplexUserService(MongoUserRepository userService, OrderRepository orderService) {
         this.userRepository = userService;
         this.orderRepository = orderService;
     }
-
+    //查询用户
+//    public Mono<MongoUser> getUserById(String userId){
+//         return userRepository.findById(userId)
+//                 .doOnNext(user-> log.info("user:{}", user))
+//                 .doOnSuccess(user->metricsService)
+//                 .doOnError(throwable -> log.error("error:{}", throwable));
+//    }
     //条件查询+转换+错误处理
     public Flux<MongoUserDto> getAdultUserWithOrder() {
         return userRepository.findByAgeGreaterThan(18).
