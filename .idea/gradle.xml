@@ -53,6 +53,27 @@
           </set>
         </option>
       </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/esdemo" />
+        <option name="gradleHome" value="D:/gradle/gradle-9.0.0" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/esdemo" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="distributionType" value="LOCAL" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/gradledemo" />
+        <option name="gradleHome" value="D:/gradle/gradle-9.0.0" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/gradledemo" />
+            <option value="$PROJECT_DIR$/gradledemo/chat-demo" />
+            <option value="$PROJECT_DIR$/gradledemo/model-demo" />
+          </set>
+        </option>
+      </GradleProjectSettings>
     </option>
   </component>
 </project>

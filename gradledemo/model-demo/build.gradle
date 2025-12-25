@@ -1,6 +1,6 @@
+apply plugin: 'org.springframework.boot'
 dependencies {
     // 正确写法：用 ":chat-demo" 表示根项目下的 chat-demo 模块
-    implementation project(':chat-demo')
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

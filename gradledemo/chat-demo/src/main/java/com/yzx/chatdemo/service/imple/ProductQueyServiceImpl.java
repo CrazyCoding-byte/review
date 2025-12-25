@@ -8,8 +8,7 @@ import com.yzx.chatdemo.service.ProductQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.common.unit.Fuzziness;
-import org.elasticsearch.index.query.Operator;
-import org.elasticsearch.index.query.RangeQueryBuilder;
+import org.elasticsearch.index.query.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +24,7 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -59,8 +59,9 @@ public class ProductQueyServiceImpl implements ProductQueryService {
             throw new IllegalArgumentException("关键词不能为空");
         }
         // 创建匹配查询，同时搜索name和description字段
+        MultiMatchQueryBuilder multiMatchQuery = multiMatchQuery(keyword, "name", "description");
         NativeQuery query = new NativeQueryBuilder()
-                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) multiMatchQuery(keyword, "name", "description")
+                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) multiMatchQuery
                         .type("best_fields") // 最佳字段匹配
                         .operator(Operator.OR) // 关键词之间是OR关系
                         .fuzziness(Fuzziness.AUTO)) // 自动模糊匹配
@@ -71,6 +72,7 @@ public class ProductQueyServiceImpl implements ProductQueryService {
         PageImpl<Product> products = new PageImpl<>(collect, pageable, search.getTotalHits());
         return products;
     }
+
     /**
      * 术语查询：精确匹配商品分类
      *
@@ -86,10 +88,10 @@ public class ProductQueyServiceImpl implements ProductQueryService {
             log.error("分类ID不能为空");
             throw new IllegalArgumentException("分类ID不能为空");
         }
-
+        TermQueryBuilder termQuery = termQuery("categoryId", categoryId);
         // 创建术语查询，精确匹配categoryId
         NativeQuery query = new NativeQueryBuilder()
-                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) termQuery("categoryId", categoryId))
+                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) termQuery)
                 .withPageable(pageable)
                 .build();
 
@@ -104,6 +106,7 @@ public class ProductQueyServiceImpl implements ProductQueryService {
                 pageable,
                 searchHits.getTotalHits());
     }
+
     /**
      * 范围查询：查询价格在指定范围内的商品
      *
@@ -115,7 +118,7 @@ public class ProductQueyServiceImpl implements ProductQueryService {
 
     @Override
     public Page<Product> searchByPriceRange(BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
-             log.info("按价格范围查询商品，最低价格: {}, 最高价格: {}", minPrice, maxPrice);
+        log.info("按价格范围查询商品，最低价格: {}, 最高价格: {}", minPrice, maxPrice);
         if (ObjectUtils.isEmpty(minPrice) || ObjectUtils.isEmpty(maxPrice)) {
             log.error("价格范围不能为空");
             throw new IllegalArgumentException("价格范围不能为空");
@@ -138,23 +141,121 @@ public class ProductQueyServiceImpl implements ProductQueryService {
         return null;
     }
 
+    /**
+     * 前缀查询
+     * @param prefix 前缀
+     * @param pageable 分页参数
+     * @return
+     */
     @Override
     public Page<Product> searchByCodePrefix(String prefix, Pageable pageable) {
+        log.info("按照编码前缀查询商品,前缀{}", prefix);
+        if (StringUtils.isEmpty(prefix)) {
+            log.error("前缀不能为空");
+            throw new IllegalArgumentException("前缀不能为空");
+        }
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
+                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) prefixQuery("code", prefix))
+                .withPageable(pageable).build();
+        SearchHits<Product> search = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
+        List<Product> collect = search.stream().map(SearchHit::getContent).collect(Collectors.toList());
+
         return null;
     }
 
+    /**
+     * 通配符查询:查询商品名称符合通配符模式的商品
+     * @param pattern 通配符模式
+     * @param pageable 分页参数
+     * @return
+     */
     @Override
     public Page<Product> searchByNameWildcard(String pattern, Pageable pageable) {
+        log.info("按照名称通配符查询商品,模式{}", pattern);
+        if (StringUtils.isEmpty(pattern)) {
+            log.error("模式不能为空");
+            throw new IllegalArgumentException("模式不能为空");
+        }
+        WildcardQueryBuilder wildcardQuery = wildcardQuery("name", pattern);
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
+                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) wildcardQuery)
+                .withPageable(pageable).build();
+
+        SearchHits<Product> searchHits = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
+
+        List<Product> products = searchHits.stream()
+                .map(SearchHit::getContent)
+                .collect(Collectors.toList());
         return null;
     }
 
+    /**
+     * 模糊查询:查询商品名称包含指定关键词的商品
+     * @param keyword 关键词
+     * @param fuzziness 模糊度
+     * @param pageable 分页参数
+     * @return
+     */
     @Override
     public Page<Product> searchByNameFuzzy(String keyword, String fuzziness, Pageable pageable) {
+        log.info("按照名称模糊查询商品,关键词{},模糊度{}", keyword, fuzziness);
+        if (StringUtils.isEmpty(keyword)) {
+            log.error("关键词不能为空");
+            throw new IllegalArgumentException("关键词不能为空");
+        }
+        FuzzyQueryBuilder fuzzyQuery = fuzzyQuery("name", keyword);
+        //// 设置模糊度，可选值：0, 1, 2, "AUTO"
+        if (StringUtils.hasText(fuzziness)) {
+            fuzzyQuery.fuzziness(Fuzziness.fromString(fuzziness));
+        } else {
+            fuzzyQuery.fuzziness(Fuzziness.AUTO);
+        }
+        //设置前缀长度
+        fuzzyQuery.prefixLength(1);
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
+                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) fuzzyQuery)
+                .withPageable(pageable).build();
+        SearchHits<Product> searchHits = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
+        List<Product> products = searchHits.stream()
+                .map(SearchHit::getContent)
+                .collect(Collectors.toList());
         return null;
     }
 
     @Override
     public Page<Product> searchByCreateTimeRange(LocalDateTime start, LocalDateTime end, Pageable pageable) {
+        log.info("按照创建时间范围查询商品,开始时间: {}, 结束时间: {}", start, end);
+        if (ObjectUtils.isEmpty(start) || ObjectUtils.isEmpty(end)) {
+            log.error("时间范围不能为空");
+            throw new IllegalArgumentException("时间范围不能为空");
+        }
+        RangeQueryBuilder rangeQuery = rangeQuery("createTime");
+        if (!ObjectUtils.isEmpty(start)) {
+            rangeQuery.gte(start); //大于等于开始时间
+        }
+        if (!ObjectUtils.isEmpty(end)) {
+            rangeQuery.lte(end);  //小于等于结束时间
+        }
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
+                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) rangeQuery)
+                .withPageable(pageable).build();
+        SearchHits<Product> searchHits = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
+        List<Product> products = searchHits.stream()
+                .map(SearchHit::getContent)
+                .collect(Collectors.toList());
         return null;
+    }
+
+    /**
+     * 查询 "价格在 500-1000 元之间、分类为智能手机、评分 4.5 以上、名称
+     * 或描述包含 ' 高级 ' 或' 智能 '、且标签包含 ' 热销 ' 或' 爆款 ' 的上架商品"复杂布尔查询
+     * @param pageable 分页参数
+     * @return
+     */
+    public Page<Product> complexBooleanQuery(Pageable pageable) {
+        log.info("复杂查询");
+        //构建布尔查询
+        BoolQueryBuilder boolQuery = boolQuery();
+        boolQuery.filter()
     }
 }

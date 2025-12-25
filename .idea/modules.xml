@@ -5,6 +5,8 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/crazycoding-byte-gateway.main.iml" filepath="$PROJECT_DIR$/.idea/modules/crazycoding-byte-gateway.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/crazycoding-byte-mq.main.iml" filepath="$PROJECT_DIR$/.idea/modules/crazycoding-byte-mq.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/godemo/godemo.iml" filepath="$PROJECT_DIR$/godemo/godemo.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/chat-demo/gradledemo.chat-demo.main.iml" filepath="$PROJECT_DIR$/.idea/modules/chat-demo/gradledemo.chat-demo.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/model-demo/gradledemo.model-demo.main.iml" filepath="$PROJECT_DIR$/.idea/modules/model-demo/gradledemo.model-demo.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/web_flux_demo/web_flux_demo.iml" filepath="$PROJECT_DIR$/web_flux_demo/web_flux_demo.iml" />
     </modules>
   </component>

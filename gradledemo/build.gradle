@@ -1,57 +1,59 @@
+//构建gradle脚本自身需要的资源,可以声明的资源包括依赖项,第三方插件,maven仓库地址
 buildscript {
     ext {
-        lombookVersion = '1.18.24'
+        // 1. 修正变量拼写：lombook → lombok
+        lombokVersion = '1.18.24'
         springBootVersion = '3.2.10'
         springCloudVersion = '2023.0.3'
         mybatisPlusVersion = '3.5.14'
         mysqlVersion = '8.0.33'
     }
-}
-plugins {
-    id 'org.springframework.boot' version '3.2.10'
-    id 'io.spring.dependency-management' version '1.1.4' // 添加依赖管理插件
-    id 'java'
-}
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+    //设置仓库
+    repositories {
+        mavenLocal()
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://repo.spring.io/milestone' }
+        maven { url 'https://repo.spring.io/snapshot' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
     }
 }
-repositories {
-    // 尝试不同的仓库顺序
-    //先从maven本地仓库找
-    mavenLocal()
-    mavenCentral()
-    maven { url 'https://maven.aliyun.com/repository/public' }
-    maven { url 'https://repo.spring.io/milestone' }
-    maven { url 'https://repo.spring.io/snapshot' }
-}
-//全局配置
+
+//全局配置 包括root和子项目
 allprojects {
     apply plugin: 'java'
     group 'com.yzx'
     version '0.0.1-SNAPSHOT'
-}
-subprojects {
-    apply {
-        plugin('org.springframework.boot')
-        plugin('io.spring.dependency-management')
-        plugin('java')
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
     }
+    repositories {
+        mavenLocal()
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://repo.spring.io/milestone' }
+        maven { url 'https://repo.spring.io/snapshot' }
+        mavenCentral() //官方仓库
+    }
+}
+
+//
+subprojects {
+    apply plugin: 'io.spring.dependency-management'//版本管理插件
     dependencies {
-        annotationProcessor 'org.projectlombok:lombok'
-        implementation 'org.projectlombok:lombok'
+        annotationProcessor'org.projectlombok:lombok'
+        implementation'org.projectlombok:lombok'
     }
     dependencyManagement {
         dependencies {
-            // 正确写法：使用 dependency() 方法
-            dependency "org.projectlombok:lombok:${lombookVersion}" // 注意修正拼写：lombook → lombok
+            dependency "org.projectlombok:lombok:${lombokVersion}"
             dependency "mysql:mysql-connector-java:${mysqlVersion}"
             dependency "com.baomidou:mybatis-plus-spring-boot3-starter:${mybatisPlusVersion}"
             dependency "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"
             dependency "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
-            dependency "org.springframework.boot:spring-boot-starter-data-elasticsearch:3.2.0"
+            // 3. 统一版本：用springBootVersion代替写死的3.2.0
+            dependency "org.springframework.boot:spring-boot-starter-data-elasticsearch:${springBootVersion}"
             dependency "org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}"
             dependency "org.springframework.boot:spring-boot-starter-data-mongodb:${springBootVersion}"
         }

@@ -1,13 +1,21 @@
+// 应用模块需加spring-boot插件
+apply plugin: 'org.springframework.boot'
 dependencies {
+    // 引入Spring Boot Web Starter（无需写版本，依赖管理已统一）
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    // 测试依赖
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // Elasticsearch相关依赖
     implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
-    implementation 'org.elasticsearch:elasticsearch:8.11.3'
+    implementation 'org.elasticsearch:elasticsearch:8.11.3' // 注意：需和spring-boot-starter-data-elasticsearch版本兼容
+    // MySQL+MyBatis-Plus
     implementation 'mysql:mysql-connector-java'
     implementation 'com.baomidou:mybatis-plus-spring-boot3-starter'
-
+    // 引入model-demo模块（如果需要）
+    implementation project(':model-demo')
 }
+
 test {
     useJUnitPlatform()
 }

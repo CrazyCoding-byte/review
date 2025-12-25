@@ -1,6 +1,5 @@
 package com.yzx.modeldemo;
 
-import com.yzx.chatdemo.entity.User;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -8,7 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class ModelDemoApplication {
 
     public static void main(String[] args) {
-        new User();
         SpringApplication.run(ModelDemoApplication.class, args);
     }
 

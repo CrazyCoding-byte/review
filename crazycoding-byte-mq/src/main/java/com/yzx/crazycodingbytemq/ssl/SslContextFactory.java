@@ -48,7 +48,6 @@ public class SslContextFactory {
         // 2. 修复：证书密码处理（兼容空密码）
         String keyPassword = config.getSslKeyPassword();
         keyPassword = (keyPassword == null || keyPassword.trim().isEmpty()) ? null : keyPassword.trim();
-
         SslContextBuilder builder;
         // 3. 修复：方法重载不匹配（区分普通证书和PKCS#12证书）
         if (isPkcs12Format(config.getSslCertPath())) {

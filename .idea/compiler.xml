@@ -23,12 +23,10 @@
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.24/lombok-1.18.24.jar" />
         </processorPath>
-        <module name="crazycoding-byte-http.main" />
+        <module name="gradledemo.chat-demo.main" />
+        <module name="gradledemo.model-demo.main" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="gradledemo" target="17" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">

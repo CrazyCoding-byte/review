@@ -1,8 +1,12 @@
 spring:
   elasticsearch:
-    uris: http://localhost:9200
+    uris: https://localhost:9200
     connection-timeout: 10s
     socket-timeout: 30s
+    username: elastic
+    password: yangzhixuan
+    ssl:
+      verification-mode: none
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/xz?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
@@ -17,7 +21,6 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
-
 logging:
   level:
     org.elasticsearch.client: WARN
