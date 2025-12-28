@@ -9,9 +9,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.*;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.BucketOrder;
+import org.springframework.data.domain.*;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
@@ -23,7 +23,9 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -60,13 +62,10 @@ public class ProductQueyServiceImpl implements ProductQueryService {
         }
         // 创建匹配查询，同时搜索name和description字段
         MultiMatchQueryBuilder multiMatchQuery = multiMatchQuery(keyword, "name", "description");
-        NativeQuery query = new NativeQueryBuilder()
-                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) multiMatchQuery
-                        .type("best_fields") // 最佳字段匹配
+        NativeQuery query = new NativeQueryBuilder().withQuery((Function<Query.Builder, ObjectBuilder<Query>>) multiMatchQuery.type("best_fields") // 最佳字段匹配
                         .operator(Operator.OR) // 关键词之间是OR关系
                         .fuzziness(Fuzziness.AUTO)) // 自动模糊匹配
-                .withPageable(pageable)
-                .build();
+                .withPageable(pageable).build();
         SearchHits<Product> search = elasticsearchOperations.search(query, Product.class);
         List<Product> collect = search.stream().map(SearchHit::getContent).collect(Collectors.toList());
         PageImpl<Product> products = new PageImpl<>(collect, pageable, search.getTotalHits());
@@ -90,21 +89,13 @@ public class ProductQueyServiceImpl implements ProductQueryService {
         }
         TermQueryBuilder termQuery = termQuery("categoryId", categoryId);
         // 创建术语查询，精确匹配categoryId
-        NativeQuery query = new NativeQueryBuilder()
-                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) termQuery)
-                .withPageable(pageable)
-                .build();
+        NativeQuery query = new NativeQueryBuilder().withQuery((Function<Query.Builder, ObjectBuilder<Query>>) termQuery).withPageable(pageable).build();
 
         SearchHits<Product> searchHits = elasticsearchOperations.search(query, Product.class);
 
-        List<Product> products = searchHits.stream()
-                .map(SearchHit::getContent)
-                .collect(Collectors.toList());
+        List<Product> products = searchHits.stream().map(SearchHit::getContent).collect(Collectors.toList());
 
-        return new org.springframework.data.domain.PageImpl<>(
-                products,
-                pageable,
-                searchHits.getTotalHits());
+        return new org.springframework.data.domain.PageImpl<>(products, pageable, searchHits.getTotalHits());
     }
 
     /**
@@ -132,10 +123,7 @@ public class ProductQueyServiceImpl implements ProductQueryService {
         if (!ObjectUtils.isEmpty(maxPrice)) {
             rangeQuery.lte(maxPrice); // 小于等于最高价格
         }
-        NativeQuery query = new NativeQueryBuilder()
-                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) rangeQuery)
-                .withPageable(pageable)
-                .build();
+        NativeQuery query = new NativeQueryBuilder().withQuery((Function<Query.Builder, ObjectBuilder<Query>>) rangeQuery).withPageable(pageable).build();
 
         SearchHits<Product> searchHits = elasticsearchOperations.search(query, Product.class);
         return null;
@@ -154,9 +142,7 @@ public class ProductQueyServiceImpl implements ProductQueryService {
             log.error("前缀不能为空");
             throw new IllegalArgumentException("前缀不能为空");
         }
-        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
-                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) prefixQuery("code", prefix))
-                .withPageable(pageable).build();
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder().withQuery((Function<Query.Builder, ObjectBuilder<Query>>) prefixQuery("code", prefix)).withPageable(pageable).build();
         SearchHits<Product> search = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
         List<Product> collect = search.stream().map(SearchHit::getContent).collect(Collectors.toList());
 
@@ -177,15 +163,11 @@ public class ProductQueyServiceImpl implements ProductQueryService {
             throw new IllegalArgumentException("模式不能为空");
         }
         WildcardQueryBuilder wildcardQuery = wildcardQuery("name", pattern);
-        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
-                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) wildcardQuery)
-                .withPageable(pageable).build();
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder().withQuery((Function<Query.Builder, ObjectBuilder<Query>>) wildcardQuery).withPageable(pageable).build();
 
         SearchHits<Product> searchHits = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
 
-        List<Product> products = searchHits.stream()
-                .map(SearchHit::getContent)
-                .collect(Collectors.toList());
+        List<Product> products = searchHits.stream().map(SearchHit::getContent).collect(Collectors.toList());
         return null;
     }
 
@@ -212,13 +194,9 @@ public class ProductQueyServiceImpl implements ProductQueryService {
         }
         //设置前缀长度
         fuzzyQuery.prefixLength(1);
-        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
-                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) fuzzyQuery)
-                .withPageable(pageable).build();
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder().withQuery((Function<Query.Builder, ObjectBuilder<Query>>) fuzzyQuery).withPageable(pageable).build();
         SearchHits<Product> searchHits = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
-        List<Product> products = searchHits.stream()
-                .map(SearchHit::getContent)
-                .collect(Collectors.toList());
+        List<Product> products = searchHits.stream().map(SearchHit::getContent).collect(Collectors.toList());
         return null;
     }
 
@@ -236,13 +214,9 @@ public class ProductQueyServiceImpl implements ProductQueryService {
         if (!ObjectUtils.isEmpty(end)) {
             rangeQuery.lte(end);  //小于等于结束时间
         }
-        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
-                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) rangeQuery)
-                .withPageable(pageable).build();
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder().withQuery((Function<Query.Builder, ObjectBuilder<Query>>) rangeQuery).withPageable(pageable).build();
         SearchHits<Product> searchHits = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
-        List<Product> products = searchHits.stream()
-                .map(SearchHit::getContent)
-                .collect(Collectors.toList());
+        List<Product> products = searchHits.stream().map(SearchHit::getContent).collect(Collectors.toList());
         return null;
     }
 
@@ -256,6 +230,74 @@ public class ProductQueyServiceImpl implements ProductQueryService {
         log.info("复杂查询");
         //构建布尔查询
         BoolQueryBuilder boolQuery = boolQuery();
-        boolQuery.filter()
+        //必须匹配:价格在500~1000之间
+        boolQuery.filter(rangeQuery("price").gte(500).lte(1000)); //价格在 500-1000 元之间
+        boolQuery.filter(termQuery("categoryName", "智能手机")); //分类为智能手机
+        boolQuery.filter(rangeQuery("score").gte(4.5));
+        boolQuery.filter(termQuery("isOnSale", true)); //上架商品
+        //因该匹配
+        BoolQueryBuilder shouldQuery = boolQuery();
+        shouldQuery.should(matchQuery("name", "高级").boost(2.0f));//提升权重
+        shouldQuery.should(matchQuery("name", "智能").boost(2.0f));
+        shouldQuery.should(matchQuery("description", "高级").boost(1.5f));
+        shouldQuery.should(matchQuery("description", "智能").boost(1.5f));
+        boolQuery.minimumShouldMatch(1);//至少匹配一个
+        boolQuery.must(shouldQuery);
+        // 应该匹配：标签包含'热销'或'爆款'（至少满足一个）
+        BoolQueryBuilder tagQuery = boolQuery();
+        tagQuery.should(termQuery("tags", "热销"));
+        tagQuery.should(termQuery("tags", "爆款"));
+        boolQuery.should(tagQuery).boost(1.5f);
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
+                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) boolQuery)
+                .withPageable(pageable).build();
+        SearchHits<Product> searchHits = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
+        List<Product> products = searchHits.stream().map(SearchHit::getContent).collect(Collectors.toList());
+        return null;
+    }
+
+    public Page<Product> searchWithSortAndPage(
+            String keyword,
+            int pageNum,
+            int pageSize,
+            String sortField,
+            String sortDir
+    ) {
+        log.info("带排序和分页的查询,关键词:{},页码:{},每页大小:{},排序字段:{},排序方向:{}", keyword, pageNum, pageSize, sortField, sortDir);
+        if (!StringUtils.hasText(keyword)) {
+            log.error("关键词不能为空");
+            throw new IllegalArgumentException("关键词不能为空");
+        }
+        if (pageNum < 0) {
+            pageNum = 0;
+        }
+        if (pageSize < 0 || pageSize > 100) {
+            pageSize = 20;//默认每页20条
+        }
+        //验证排序字段是否合法
+        List<String> validSortFields = Arrays.asList("name", "price", "score", "sales", "stock", "createTime");
+        if (!StringUtils.hasText(sortField) || !validSortFields.contains(sortField)) {
+            sortField = "score";//默认按评分排序
+        }
+        //排序方向
+        Sort.Direction sortDirection = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        PageRequest pageable = PageRequest.of(pageNum, pageSize, Sort.by(sortDirection, sortField));
+        NativeQuery nativeQueryBuilder = new NativeQueryBuilder()
+                .withQuery((Function<Query.Builder, ObjectBuilder<Query>>) multiMatchQuery(keyword, "name", "description"))
+                .withPageable(pageable)
+                .build();
+        SearchHits<Product> searchHits = elasticsearchOperations.search(nativeQueryBuilder, Product.class);
+        List<Product> products = searchHits.stream().map(SearchHit::getContent).collect(Collectors.toList());
+        return null;
+    }
+
+    //es聚合查询
+    public Map<String, Object> aggregationByCategory() {
+        log.info("按分类聚合统计商品信息");
+        //1.按分类ID和分类名称进行分组
+        AggregationBuilders.terms("by_category")
+                .field("categoryId")
+                .size(10)
+                .order(BucketOrder.count(false));//按照数量降序
     }
 }

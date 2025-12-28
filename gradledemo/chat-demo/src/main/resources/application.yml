@@ -25,4 +25,6 @@ logging:
   level:
     org.elasticsearch.client: WARN
     com.example.esquerydemo: INFO
+Es:
+  p
 
