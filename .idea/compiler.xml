@@ -15,25 +15,44 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
-          <entry name="$PROJECT_DIR$/../apache-maven-3.5.4/package/org/springframework/boot/spring-boot-configuration-processor/2.2.13.RELEASE/spring-boot-configuration-processor-2.2.13.RELEASE.jar" />
-          <entry name="$PROJECT_DIR$/../apache-maven-3.5.4/package/org/springframework/boot/spring-boot-configuration-processor/2.2.13.RELEASE/spring-boot-configuration-processor-2.2.13.RELEASE.jar" />
+          <entry name="$PROJECT_DIR$/../apache-maven-3.9.9/package/org/springframework/boot/spring-boot-configuration-processor/2.2.13.RELEASE/spring-boot-configuration-processor-2.2.13.RELEASE.jar" />
         </processorPath>
         <module name="tcc-transaction-server" />
+      </profile>
+      <profile name="Annotation profile for crazycoding-byte-transaction" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$PROJECT_DIR$/../apache-maven-3.9.9/package/org/projectlombok/lombok/1.18.30/lombok-1.18.30.jar" />
+          <entry name="$PROJECT_DIR$/../apache-maven-3.9.9/package/org/mapstruct/mapstruct-processor/1.5.5.Final/mapstruct-processor-1.5.5.Final.jar" />
+          <entry name="$PROJECT_DIR$/../apache-maven-3.9.9/package/org/mapstruct/mapstruct/1.5.5.Final/mapstruct-1.5.5.Final.jar" />
+        </processorPath>
+        <module name="crazycoding-byte-order" />
+        <module name="crazycoding-byte-pay" />
+        <module name="crazycoding-byte-common" />
+        <module name="transaction-center" />
+        <module name="crazycoding-byte-wms" />
       </profile>
       <profile name="Gradle Imported" enabled="true">
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.24/lombok-1.18.24.jar" />
         </processorPath>
-        <module name="gradledemo.chat-demo.main" />
-        <module name="gradledemo.model-demo.main" />
+        <module name="crazycoding-byte-gateway.main" />
       </profile>
     </annotationProcessing>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="crazycoding-byte-common" options="-parameters" />
+      <module name="crazycoding-byte-order" options="-parameters" />
+      <module name="crazycoding-byte-pay" options="-parameters" />
+      <module name="crazycoding-byte-transaction" options="-parameters" />
+      <module name="crazycoding-byte-wms" options="-parameters" />
       <module name="esexample" options="-parameters" />
       <module name="tcc-transaction-server" options="-parameters" />
+      <module name="transaction-center" options="-parameters" />
       <module name="web_flux_demo" options="-parameters" />
     </option>
   </component>

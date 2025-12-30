@@ -16,6 +16,12 @@
         <option value="$PROJECT_DIR$/web_flux_demo/pom.xml" />
         <option value="$PROJECT_DIR$/tcc-transaction/tcc-transaction-server/pom.xml" />
         <option value="$PROJECT_DIR$/esexample/pom.xml" />
+        <option value="$PROJECT_DIR$/crazycoding-byte-transaction/pom.xml" />
+        <option value="$PROJECT_DIR$/crazycoding-byte-transaction/crazycoding-byte-order/pom.xml" />
+        <option value="$PROJECT_DIR$/crazycoding-byte-transaction/crazycoding-byte-pay/pom.xml" />
+        <option value="$PROJECT_DIR$/crazycoding-byte-transaction/crazycoding-byte-wms/pom.xml" />
+        <option value="$PROJECT_DIR$/crazycoding-byte-transaction/crazycoding-byte-common/pom.xml" />
+        <option value="$PROJECT_DIR$/crazycoding-byte-transaction/transaction-center/pom.xml" />
       </list>
     </option>
   </component>

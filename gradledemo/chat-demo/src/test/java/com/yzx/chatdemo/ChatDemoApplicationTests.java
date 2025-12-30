@@ -3,10 +3,7 @@ package com.yzx.chatdemo;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.StringTermsAggregate;
-import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
+import co.elastic.clients.elasticsearch._types.aggregations.*;
 import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
@@ -285,30 +282,27 @@ class ChatDemoApplicationTests {
     @Test
     void testElasticsearch11() {
         log.info("按分类聚合统计商品信息（ES 8.x版本）");
-
+        AverageAggregation build = AggregationBuilders.avg().build();
         // 1. 构建聚合（一级聚合+子聚合）
         // 一级聚合：按categoryId分组
         Aggregation categoryAgg = Aggregation.of(a -> a
                 .terms(t -> t
-                        .field("categoryId") // 分组字段
-                        .size(10) // 最多返回10个分类
-                        // 子聚合1：获取分类名称（取第一个）
-                        .aggregations("category_name", Aggregation.of(sub -> sub
-                                .terms(st -> st.field("categoryName").size(1))
-                        ))
-                        // 子聚合2：平均价格
-                        .aggregations("avg_price", Aggregation.of(sub -> sub
-                                .avg(avg -> avg.field("price"))
-                        ))
-                        // 子聚合3：最高评分
-                        .aggregations("max_score", Aggregation.of(sub -> sub
-                                .max(max -> max.field("score"))
-                        ))
-                        // 子聚合4：总销量
-                        .aggregations("total_sales", Aggregation.of(sub -> sub
-                                .sum(sum -> sum.field("sales"))
-                        ))
+                        .field("categoryId")
+                        .size(10)
                 )
+                // 子聚合必须添加在 terms 聚合之后，作为整体返回对象的 aggregations
+                .aggregations("category_name", Aggregation.of(sub -> sub
+                        .terms(st -> st.field("categoryName").size(1))
+                ))
+                .aggregations("avg_price", Aggregation.of(sub -> sub
+                        .avg(avg -> avg.field("price"))
+                ))
+                .aggregations("max_score", Aggregation.of(sub -> sub
+                        .max(max -> max.field("score"))
+                ))
+                .aggregations("total_sales", Aggregation.of(sub -> sub
+                        .sum(sum -> sum.field("sales"))
+                ))
         );
 
         // 2. 构建NativeQuery（核心：用withAggregation替代withAggregations）

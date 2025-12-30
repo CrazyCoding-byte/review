@@ -32,6 +32,11 @@
       <option name="url" value="https://maven.aliyun.com/repository/spring-plugin/" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="aliyun-public" />
+      <option name="name" value="aliyun-public" />
+      <option name="url" value="https://maven.aliyun.com/repository/public" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="MavenLocal" />
       <option name="name" value="MavenLocal" />
       <option name="url" value="file:/$MAVEN_REPOSITORY$/" />
@@ -52,6 +57,16 @@
       <option name="url" value="https://maven.aliyun.com/repository/public" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="spring-milestones" />
+      <option name="name" value="Spring Milestones" />
+      <option name="url" value="https://maven.aliyun.com/repository/spring" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="aliyun-spring" />
+      <option name="name" value="aliyun-spring" />
+      <option name="url" value="https://maven.aliyun.com/repository/spring" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="maven2" />
       <option name="name" value="maven2" />
       <option name="url" value="https://repo.spring.io/milestone" />
@@ -67,9 +82,24 @@
       <option name="url" value="https://repo.maven.apache.org/maven2/" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="spring-snapshots" />
+      <option name="name" value="Spring Snapshots" />
+      <option name="url" value="https://maven.aliyun.com/repository/spring" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="spring-milestones" />
+      <option name="name" value="Spring Milestones" />
+      <option name="url" value="https://repo.spring.io/milestone" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="maven2" />
       <option name="name" value="maven2" />
       <option name="url" value="https://maven.aliyun.com/repository/public/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="spring-snapshots" />
+      <option name="name" value="Spring Snapshots" />
+      <option name="url" value="https://repo.spring.io/snapshot" />
     </remote-repository>
     <remote-repository>
       <option name="id" value="jboss.community" />
@@ -80,6 +110,11 @@
       <option name="id" value="maven7" />
       <option name="name" value="maven7" />
       <option name="url" value="https://maven.aliyun.com/repository/grails-core/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="aliyun-maven" />
+      <option name="name" value="aliyun-maven" />
+      <option name="url" value="https://maven.aliyun.com/repository/public" />
     </remote-repository>
   </component>
 </project>
