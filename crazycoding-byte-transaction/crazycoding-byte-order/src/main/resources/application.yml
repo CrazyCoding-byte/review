@@ -9,5 +9,6 @@ spring:
     username: root
     password: yangzhixuan
     driver-class-name: com.mysql.cj.jdbc.Driver
-rocketmq:
-  name-server: localhost:9876
+  # 去掉rocketmq配置，或只保留最基本的
+  rocketmq:
+    name-server: localhost:9876

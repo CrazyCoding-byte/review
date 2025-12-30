@@ -2,7 +2,7 @@
 package com.yzx.crazycodingbyteorder.service;
 
 
-import com.alibaba.nacos.api.model.v2.Result;
+import com.yzx.crazycodingbytecommon.entity.Result;
 import com.yzx.crazycodingbyteorder.dto.CreateOrderRequest;
 import com.yzx.crazycodingbyteorder.vo.OrderVO;
 
