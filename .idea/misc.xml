@@ -15,6 +15,7 @@
       <list>
         <option value="$PROJECT_DIR$/web_flux_demo/pom.xml" />
         <option value="$PROJECT_DIR$/tcc-transaction/tcc-transaction-server/pom.xml" />
+        <option value="$PROJECT_DIR$/esexample/pom.xml" />
       </list>
     </option>
   </component>

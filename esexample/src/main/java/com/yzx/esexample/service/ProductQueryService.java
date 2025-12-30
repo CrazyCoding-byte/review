@@ -1,6 +1,6 @@
-package com.yzx.chatdemo.service;
+package com.yzx.esexample.service;
 
-import com.yzx.chatdemo.entity.Product;
+import com.yzx.esexample.entity.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

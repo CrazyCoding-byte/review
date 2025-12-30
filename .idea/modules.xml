@@ -3,7 +3,11 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/crazycoding-byte-gateway.main.iml" filepath="$PROJECT_DIR$/.idea/modules/crazycoding-byte-gateway.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/crazycoding-byte-http.main.iml" filepath="$PROJECT_DIR$/.idea/modules/crazycoding-byte-http.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/crazycoding-byte-mq.main.iml" filepath="$PROJECT_DIR$/.idea/modules/crazycoding-byte-mq.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/crazycoding-byte-orm.main.iml" filepath="$PROJECT_DIR$/.idea/modules/crazycoding-byte-orm.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/crazycoding-byte-registerwithconfig.main.iml" filepath="$PROJECT_DIR$/.idea/modules/crazycoding-byte-registerwithconfig.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/esexample/esexample.iml" filepath="$PROJECT_DIR$/esexample/esexample.iml" />
       <module fileurl="file://$PROJECT_DIR$/godemo/godemo.iml" filepath="$PROJECT_DIR$/godemo/godemo.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/chat-demo/gradledemo.chat-demo.main.iml" filepath="$PROJECT_DIR$/.idea/modules/chat-demo/gradledemo.chat-demo.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/model-demo/gradledemo.model-demo.main.iml" filepath="$PROJECT_DIR$/.idea/modules/model-demo/gradledemo.model-demo.main.iml" />

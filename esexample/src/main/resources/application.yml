@@ -1,0 +1,28 @@
+spring:
+  elasticsearch:
+    uris: https://localhost:9200
+    connection-timeout: 10s
+    socket-timeout: 30s
+    username: elastic
+    password: yangzhixuan
+    ssl:
+      verification-mode: none
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/xz?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: yangzhixuan
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+logging:
+  level:
+    org.elasticsearch.client: WARN
+    com.example.esquerydemo: INFO
+
