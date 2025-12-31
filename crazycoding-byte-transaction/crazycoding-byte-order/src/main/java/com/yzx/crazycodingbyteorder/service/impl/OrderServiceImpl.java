@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.TransactionSendResult;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
@@ -53,10 +54,30 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     @Transactional(rollbackFor = Exception.class)
     public Result<OrderVO> createOrder(CreateOrderRequest request) {
         log.info("创建订单开始，请求参数：{}", request);
-        //创建订单之前要先发送锁库存消息 只有锁成功才创建订单
         try {
             // 1. 生成订单号
             String orderNo = generateOrderNo();
+            //创建订单之前要先发送锁库存消息 只有锁成功才创建订单
+            // 6. 发送库存锁定消息（事务消息）
+            InventoryLockDTO lockDTO = new InventoryLockDTO();
+            lockDTO.setOrderNo(orderNo);
+            lockDTO.setProductId(request.getProductId());
+            lockDTO.setQuantity(request.getQuantity());
+            lockDTO.setUserId(request.getUserId());
+
+
+            // 发送半消息到库存服务
+            Message<InventoryLockDTO> message = MessageBuilder.withPayload(lockDTO)
+                    .setHeader("ORDER_NO", orderNo)
+                    .build();
+
+            TransactionSendResult result = rocketMQTemplate.sendMessageInTransaction(
+                    OrderConstant.TOPIC_INVENTORY_LOCK,
+                    message,
+                    orderNo  // 事务参数，会传递给事务监听器
+            );
+
+            log.info("发送库存锁定事务消息成功，订单号：{}，消息ID：{}", orderNo, result.getMsgId());
 
             // 2. 计算订单总金额
             BigDecimal totalAmount = request.getProductPrice()
@@ -97,37 +118,32 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                     null, OrderStatusEnum.WAIT_PAY.getCode(),
                     "用户创建订单", request.getUserId(), "用户");
 
-            // 6. 发送库存锁定消息（事务消息）
-            InventoryLockDTO lockDTO = new InventoryLockDTO();
-            lockDTO.setOrderNo(orderNo);
-            lockDTO.setProductId(request.getProductId());
-            lockDTO.setQuantity(request.getQuantity());
-            lockDTO.setUserId(request.getUserId());
-
-
-            // 发送半消息到库存服务
-            Message<InventoryLockDTO> message = MessageBuilder.withPayload(lockDTO)
-                    .setHeader("ORDER_NO", orderNo)
-                    .build();
-
-            TransactionSendResult result = rocketMQTemplate.sendMessageInTransaction(
-                    OrderConstant.TOPIC_INVENTORY_LOCK,
-                    message,
-                    orderNo  // 事务参数，会传递给事务监听器
-            );
-
-            log.info("发送库存锁定事务消息成功，订单号：{}，消息ID：{}", orderNo, result.getMsgId());
-
             // 7. 返回订单信息
             OrderVO orderVO = convertToVO(order);
             return Result.success(orderVO);
 
         } catch (Exception e) {
             log.error("创建订单失败", e);
+            sendUnlockStockRequest(request);
             throw new BusinessException("创建订单失败：" + e.getMessage());
         }
     }
+    private void sendUnlockStockRequest(CreateOrderRequest request) {
+        // 生成临时订单号（或如果已生成正式订单号，直接用）
+        String orderNo = generateOrderNo();
+        InventoryLockDTO unlockDTO = new InventoryLockDTO();
+        unlockDTO.setOrderNo(orderNo); // 关键：补全订单号，库存服务靠这个做幂等
+        unlockDTO.setProductId(request.getProductId());
+        unlockDTO.setQuantity(request.getQuantity());
+        unlockDTO.setUserId(request.getUserId());
 
+        // 发送解锁请求（同步发送，确保送达）
+        rocketMQTemplate.syncSend(
+                OrderConstant.TOPIC_INVENTORY_UNLOCK,
+                MessageBuilder.withPayload(unlockDTO).build()
+        );
+        log.info("发送解锁库存请求成功，订单号：{}，商品ID：{}", orderNo, request.getProductId());
+    }
     /**
      * ★★★ 核心方法：保存本地消息
      * 和订单保存在同一个事务中，要么都成功，要么都失败

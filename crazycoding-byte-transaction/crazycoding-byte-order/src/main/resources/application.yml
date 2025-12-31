@@ -11,4 +11,16 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   # 去掉rocketmq配置，或只保留最基本的
   rocketmq:
-    name-server: localhost:9876
+    # NameServer地址（对应代码中producer.setNamesrvAddr()）
+    name-server: 127.0.0.1:9876
+    # 普通生产者配置（非事务）
+    producer:
+      # 普通生产者组（对应DefaultMQProducer的group）
+      group: order-service-producer-group
+      # 发送超时时间（对应producer.setSendMsgTimeout()）
+      send-message-timeout: 3000
+      # 发送失败重试次数（对应producer.setRetryTimesWhenSendFailed()）
+      retry-times-when-send-failed: 2
+    # 事务生产者单独配置（可选，也可硬编码）
+    transaction-producer:
+      group: order-service-transaction-producer-group

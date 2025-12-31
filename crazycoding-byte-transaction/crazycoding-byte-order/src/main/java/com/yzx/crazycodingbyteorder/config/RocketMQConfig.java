@@ -1,46 +1,30 @@
-// order/src/main/java/com/demo/order/config/RocketMQConfig.java
 package com.yzx.crazycodingbyteorder.config;
 
 import com.yzx.crazycodingbyteorder.listen.OrderTransactionListener;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.TransactionMQProducer;
-import org.apache.rocketmq.spring.annotation.ExtRocketMQTemplateConfiguration;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.converter.GsonMessageConverter;
 
+// 注意：移除@ExtRocketMQTemplateConfiguration（该注解是扩展模板用的，不是全局配置）
 @Slf4j
 @Configuration
-@ExtRocketMQTemplateConfiguration(nameServer = "${spring.rocketmq.name-server}")
 public class RocketMQConfig {
 
+
+    // ========== 3. RocketMQTemplate（绑定普通生产者） ==========
     @Bean
-    public RocketMQTemplate rocketMQTemplate(@Value("${spring.rocketmq.name-server}") String nameServer) {
+    public RocketMQTemplate rocketMQTemplate(DefaultMQProducer producer) {
         RocketMQTemplate template = new RocketMQTemplate();
-
-        // 配置生产者
-        DefaultMQProducer producer = new DefaultMQProducer("order-service-producer-group");
-        producer.setNamesrvAddr(nameServer);
-        producer.setSendMsgTimeout(3000);
-        producer.setRetryTimesWhenSendFailed(2);
-
-        // 配置事务生产者
-        TransactionMQProducer transactionProducer = new TransactionMQProducer("order-service-transaction-producer-group");
-        transactionProducer.setNamesrvAddr(nameServer);
-        transactionProducer.setSendMsgTimeout(3000);
-        transactionProducer.setRetryTimesWhenSendFailed(2);
-
-        // 设置事务监听器
-        transactionProducer.setTransactionListener(orderTransactionListener());
-
-        template.setProducer(transactionProducer);
-
+        template.setProducer(producer);
+        // 替换为自定义的消息转换器
+        template.setMessageConverter(new GsonMessageConverter());
         return template;
     }
 
-    @Bean
-    public OrderTransactionListener orderTransactionListener() {
-        return new OrderTransactionListener();
-    }
+
 }

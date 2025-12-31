@@ -1,5 +1,5 @@
 // order/src/main/java/com/demo/order/constant/OrderConstant.java
-package com.yzx.crazycodingbyteorder.constant;
+package com.yzx.crazycodingbytewms.constant;
 
 public class OrderConstant {
     // 订单号前缀
