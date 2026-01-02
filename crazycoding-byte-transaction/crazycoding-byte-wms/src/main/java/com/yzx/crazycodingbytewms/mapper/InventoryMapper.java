@@ -15,18 +15,18 @@ import org.apache.ibatis.annotations.Update;
 public interface InventoryMapper extends BaseMapper<Inventory> {
 
     /**
-     * 乐观锁锁定库存：扣减可用库存 + 增加锁定库存
-     * @param productId 商品ID
-     * @param quantity 锁定数量
-     * @param version 版本号（乐观锁）
-     * @return 影响行数（1=成功，0=失败/乐观锁冲突）
+     * 乐观锁锁定库存（无available_stock字段版）
+     * 核心修改：
+     * 1. 移除available_stock更新
+     * 2. 用 (total_stock - locked_stock) >= #{quantity} 判断可用库存是否足够
+     * 3. 仅更新locked_stock和version
      */
     @Update("UPDATE inventory " +
-            "SET available_stock = available_stock - #{quantity}, " +
-            "locked_stock = locked_stock + #{quantity}, " +
-            "version = version + 1 " +
+            "SET locked_stock = locked_stock + #{quantity}, " +  // 仅增加锁定库存
+            "version = version + 1, " +
+            "update_time = NOW() " +
             "WHERE product_id = #{productId} " +
-            "AND available_stock >= #{quantity} " +
+            "AND (total_stock - locked_stock) >= #{quantity} " + // 实时计算可用库存并校验
             "AND version = #{version}")
     int lockStockWithOptimisticLock(
             @Param("productId") Long productId,
@@ -36,23 +36,33 @@ public interface InventoryMapper extends BaseMapper<Inventory> {
 
     /**
      * 根据商品ID查询库存（加行锁，防止并发）
+     * 核心修改：
+     * 1. 移除available_stock字段查询
+     * 2. 新增 (total_stock - locked_stock) AS available_stock，保持返回值兼容业务代码
      */
-    @Select("SELECT * FROM inventory WHERE product_id = #{productId} FOR UPDATE")
+    @Select("SELECT id, product_id, product_name, total_stock, locked_stock, " +
+            "(total_stock - locked_stock) AS available_stock, " + // 实时计算可用库存，兼容业务层取值
+            "version, create_time, update_time " +
+            "FROM inventory WHERE product_id = #{productId} FOR UPDATE")
     Inventory selectByProductIdForUpdate(@Param("productId") Long productId);
 
     /**
-     * 乐观锁解锁库存：锁定库存-数量，可用库存+数量
+     * 乐观锁解锁库存（无available_stock字段版）
+     * 核心修改：
+     * 1. 移除available_stock更新
+     * 2. 仅更新locked_stock和version
      */
     @Update("UPDATE inventory " +
-            "SET locked_stock = locked_stock - #{quantity}, " +
-            "available_stock = available_stock + #{quantity}, " +
-            "version = version + 1 " +
+            "SET locked_stock = locked_stock - #{quantity}, " +  // 仅减少锁定库存
+            "version = version + 1, " +
+            "update_time = NOW() " +
             "WHERE product_id = #{productId} " +
-            "AND locked_stock >= #{quantity} " + // 数据库层面校验，避免负数
+            "AND locked_stock >= #{quantity} " + // 确保锁定库存足够解锁
             "AND version = #{version}")
     int unlockStockWithOptimisticLock(
             @Param("productId") Long productId,
             @Param("quantity") Integer quantity,
             @Param("version") Integer version
     );
+
 }

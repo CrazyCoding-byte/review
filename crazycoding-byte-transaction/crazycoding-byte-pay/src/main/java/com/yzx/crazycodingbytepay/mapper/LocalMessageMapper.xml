@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yzx.crazycodingbytepay.mapper.LocalMessageMapper">
+
+    <select id="selectByBusinessId" resultType="com.yzx.crazycodingbytepay.entity.LocalMessage">
+        SELECT id,
+               business_id,
+               message_content,
+               status,
+               remark,
+               retry_count,
+               create_time,
+               update_time
+        FROM local_message
+        WHERE business_id = #{businessId}
+    </select>
+
+    <insert id="insert" parameterType="com.yzx.crazycodingbytepay.entity.LocalMessage">
+        INSERT INTO local_message (business_id, message_content, status, remark, retry_count, create_time, update_time)
+        VALUES (#{businessId}, #{messageContent}, #{status}, #{remark}, #{retryCount}, NOW(), NOW())
+    </insert>
+
+    <update id="updateById" parameterType="com.yzx.crazycodingbytepay.entity.LocalMessage">
+        UPDATE local_message
+        SET status      = #{status},
+            remark      = #{remark},
+            retry_count = #{retryCount},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+</mapper>

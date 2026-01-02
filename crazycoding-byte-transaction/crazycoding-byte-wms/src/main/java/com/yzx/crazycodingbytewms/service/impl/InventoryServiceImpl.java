@@ -187,4 +187,78 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
                 unlockDTO.getOrderNo(), unlockDTO.getProductId(), unlockDTO.getQuantity());
         return true;
     }
+
+
+    //支付成功之后实际扣减库存
+    // 在InventoryServiceImpl中补充deductLockedStock方法
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deductLockedStock(InventoryLockDTO deductDTO) {
+        log.info("开始扣减锁定库存，订单号：{}，商品ID：{}，扣减数量：{}",
+                deductDTO.getOrderNo(), deductDTO.getProductId(), deductDTO.getQuantity());
+
+        // 1. 幂等校验：查询锁定日志，确保只扣减一次
+        LambdaQueryWrapper<InventoryLockLog> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(InventoryLockLog::getOrderNo, deductDTO.getOrderNo())
+                .eq(InventoryLockLog::getProductId, deductDTO.getProductId())
+                .eq(InventoryLockLog::getStatus, 0);
+        InventoryLockLog lockLog = inventoryLockLogMapper.selectOne(wrapper);
+        if (lockLog == null) {
+            log.warn("无有效锁定记录/已扣减，订单号：{}", deductDTO.getOrderNo());
+            return true; // 幂等返回成功
+        }
+
+        // 2. 查询库存（带版本号）
+        Inventory inventory = getOne(lambdaQuery().eq(Inventory::getProductId, deductDTO.getProductId()));
+        if (inventory == null) {
+            log.error("商品不存在，商品ID：{}", deductDTO.getProductId());
+            return false;
+        }
+        if (inventory.getLockedStock() < deductDTO.getQuantity()) {
+            log.error("扣减数量超过锁定库存，商品ID：{}，锁定库存：{}，扣减数量：{}",
+                    inventory.getProductId(), inventory.getLockedStock(), deductDTO.getQuantity());
+            return false;
+        }
+
+        // 3. 乐观锁扣减锁定库存（锁定→总库存扣减）
+        int deductResult = 0;
+        int retryCount = 0;
+        while (retryCount < 3 && deductResult <= 0) {
+            deductResult = inventoryMapper.deductLockedStockWithOptimisticLock(
+                    deductDTO.getProductId(),
+                    deductDTO.getQuantity(),
+                    inventory.getVersion()
+            );
+            retryCount++;
+            if (deductResult <= 0) {
+                inventory = getOne(lambdaQuery().eq(Inventory::getProductId, deductDTO.getProductId()));
+                log.warn("扣减库存乐观锁冲突，重试第{}次，商品ID：{}", retryCount, deductDTO.getProductId());
+            }
+        }
+        if (deductResult <= 0) {
+            log.error("扣减锁定库存失败，订单号：{}", deductDTO.getOrderNo());
+            return false;
+        }
+
+        // 4. 更新锁定日志为"已扣减"
+        lockLog.setStatus(2); // 2-已扣减
+        lockLog.setDeductTime(LocalDateTime.now());
+        lockLog.setRemark("支付成功，扣减锁定库存，订单号：" + deductDTO.getOrderNo());
+        inventoryLockLogMapper.updateById(lockLog);
+
+        // 5. 记录扣减操作日志
+        InventoryOperationLog operationLog = new InventoryOperationLog();
+        operationLog.setProductId(deductDTO.getProductId());
+        operationLog.setOperationType("DEDUCT"); // 扣减操作
+        operationLog.setOrderNo(deductDTO.getOrderNo());
+        operationLog.setBeforeStock(inventory.getTotalStock());
+        operationLog.setAfterStock(inventory.getTotalStock() - deductDTO.getQuantity());
+        operationLog.setChangeQuantity(-deductDTO.getQuantity());
+        operationLog.setOperatorId(deductDTO.getUserId());
+        operationLog.setRemark("订单" + deductDTO.getOrderNo() + "支付成功，扣减锁定库存");
+        inventoryOperationLogMapper.insert(operationLog);
+
+        log.info("扣减锁定库存成功，订单号：{}，商品ID：{}", deductDTO.getOrderNo(), deductDTO.getProductId());
+        return true;
+    }
 }
