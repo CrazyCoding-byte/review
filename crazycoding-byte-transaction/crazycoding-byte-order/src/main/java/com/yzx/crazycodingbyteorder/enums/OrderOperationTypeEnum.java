@@ -9,6 +9,7 @@ public enum OrderOperationTypeEnum {
     PAY("PAY", "订单支付"),
     CANCEL("CANCEL", "取消订单"),
     UPDATE("UPDATE", "更新订单"),
+    UPDATE_STATUS("UPDATE_STATUS", "更新订单状态")
     ;
     
     private final String code;

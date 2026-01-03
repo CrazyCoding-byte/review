@@ -65,4 +65,32 @@ public interface InventoryMapper extends BaseMapper<Inventory> {
             @Param("version") Integer version
     );
 
+    /**
+     * 乐观锁扣减锁定库存（支付成功后，锁定库存转实际扣减）
+     * 核心修改：移除available_stock更新，仅更新total_stock和locked_stock
+     */
+    @Update("UPDATE inventory " +
+            "SET total_stock = total_stock - #{quantity}, " +  // 总库存实际扣减
+            "locked_stock = locked_stock - #{quantity}, " +    // 锁定库存释放
+            "version = version + 1, " +
+            "update_time = NOW() " +
+            "WHERE product_id = #{productId} " +
+            "AND locked_stock >= #{quantity} " + // 确保锁定库存足够扣减
+            "AND version = #{version}")
+    int deductLockedStockWithOptimisticLock(
+            @Param("productId") Long productId,
+            @Param("quantity") Integer quantity,
+            @Param("version") Integer version
+    );
+
+    /**
+     * 清理过期锁定库存（定时任务用）
+     * 核心修改：移除available_stock更新，仅更新locked_stock
+     */
+    @Update("UPDATE inventory i " +
+            "INNER JOIN inventory_lock_log l ON i.product_id = l.product_id " +
+            "SET i.locked_stock = i.locked_stock - l.quantity, " + // 仅释放锁定库存
+            "i.update_time = NOW() " +
+            "WHERE l.status = 0 AND l.expire_time < NOW()")
+    int cleanExpiredLockStock();
 }

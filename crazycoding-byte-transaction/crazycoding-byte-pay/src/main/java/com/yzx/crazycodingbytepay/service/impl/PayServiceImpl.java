@@ -37,6 +37,8 @@ public class PayServiceImpl implements PayService {
         // 3. 支付结果与本地消息表联动 支付成功之后发送消息给本地消息表 然后轮询本地消息表去实际的扣减库存和解锁库存
         if (paySuccess) {
             // 支付成功：更新本地消息为"可发送"状态（或直接触发发送）
+            //修改订单状态
+            //发送本地消息
             localMessageService.updateMessageStatusForPaymentSuccess(request.getOrderNo());
             log.info("支付成功，订单号：{}，支付单号：{}", request.getOrderNo(), payNo);
             return PayResponse.success(payNo, request.getOrderNo(), "支付成功");

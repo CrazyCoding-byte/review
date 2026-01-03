@@ -1,19 +1,21 @@
-package com.yzx.crazycodingbyteorder.config;
+package com.yzx.crazycodingbytewms.config;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.converter.GsonMessageConverter;
 
-// 注意：移除@ExtRocketMQTemplateConfiguration（该注解是扩展模板用的，不是全局配置）
-@Slf4j
+/**
+ * @className: RocketMQConfig
+ * @author: yzx
+ * @date: 2026/1/3 11:55
+ * @Version: 1.0
+ * @description:
+ */
 @Configuration
 public class RocketMQConfig {
 
-
-    // ========== 3. RocketMQTemplate（绑定普通生产者） ==========
     @Bean
     public RocketMQTemplate rocketMQTemplate() {
         RocketMQTemplate template = new RocketMQTemplate();
@@ -22,6 +24,4 @@ public class RocketMQConfig {
         template.setMessageConverter(new GsonMessageConverter());
         return template;
     }
-
-
 }

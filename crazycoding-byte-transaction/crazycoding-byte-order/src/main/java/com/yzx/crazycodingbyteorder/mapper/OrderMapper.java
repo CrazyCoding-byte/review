@@ -21,9 +21,8 @@ public interface OrderMapper extends BaseMapper<Order> {
      * 更新订单状态
      */
     @Update("UPDATE `order` SET status = #{status}, update_time = NOW() " +
-            "WHERE order_no = #{orderNo} AND status = #{oldStatus}")
+            "WHERE order_no = #{orderNo}")
     int updateOrderStatus(@Param("orderNo") String orderNo,
-                          @Param("oldStatus") Integer oldStatus,
                           @Param("status") Integer status);
 
     /**

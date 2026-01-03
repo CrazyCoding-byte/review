@@ -13,8 +13,8 @@ public class OrderConstant {
     
     // 最大重试次数
     public static final int MAX_RETRY_COUNT = 3;
-    
     // RocketMQ Topic
+    public static final String TOPIC_INVENTORY_LOCK_RESULT = "topic_inventory_lock_result";
     public static final String TOPIC_ORDER_CREATE = "ORDER_CREATE_TOPIC";
     public static final String TOPIC_ORDER_PAY = "ORDER_PAY_TOPIC";
     public static final String TOPIC_ORDER_CANCEL = "ORDER_CANCEL_TOPIC";
