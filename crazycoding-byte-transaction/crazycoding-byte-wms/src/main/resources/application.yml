@@ -9,9 +9,14 @@ spring:
 rocketmq:
   name-server: 192.168.1.13:9876
   producer:
-    group: test_pay_producer_group
+    group: test-producer-group
     send-message-timeout: 3000
     compress-message-body-threshold: 4096
     max-message-size: 4194304
+  consumer:
+    group: test-consumer-group # 业务消费者组（死信队列命名依赖此值）
+    consume-thread-max: 10 # 消费线程数
+    max-reconsume-times: 0 # 全局最大重试次数（优先级低于注解）
+    consume-timeout: 10000 # 消费超时时间（ms，可选）
 server:
-  port: 8081
+  port: 8082

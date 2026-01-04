@@ -21,7 +21,6 @@ public class LocalMessageServiceImpl implements LocalMessageService {
         if (message != null) {
             // 状态更新为"待发送"（1=待发送，可根据实际业务调整）
             message.setStatus(1);
-            message.setRemark("支付成功，准备发送消息");
             localMessageMapper.updateById(message);
         }
     }
@@ -33,7 +32,6 @@ public class LocalMessageServiceImpl implements LocalMessageService {
         if (message != null) {
             // 状态更新为"失败"（-1=支付失败）
             message.setStatus(-1);
-            message.setRemark("支付失败：" + errorMsg);
             localMessageMapper.updateById(message);
         }
     }

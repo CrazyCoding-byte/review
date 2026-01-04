@@ -214,7 +214,6 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
 
     //支付成功之后实际扣减库存
     // 在InventoryServiceImpl中补充deductLockedStock方法
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deductLockedStock(InventoryLockDTO deductDTO) {
         log.info("开始扣减锁定库存，订单号：{}，商品ID：{}，扣减数量：{}", deductDTO.getOrderNo(), deductDTO.getProductId(), deductDTO.getQuantity());
