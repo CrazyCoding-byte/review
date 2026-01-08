@@ -17,7 +17,10 @@ import java.util.Random;
  */
 @Component
 @RocketMQMessageListener(consumerGroup = "test_order_consumer",
-        topic = "test_order", consumeThreadNumber = 5,consumeMode = ConsumeMode.ORDERLY)
+        /**ConsumeModel.orderly 顺序消费 根据生产者指定的唯一hash值判断
+         *
+        */
+        topic = "test_order", consumeThreadNumber = 5,consumeMode = ConsumeMode.ORDERLY,selectorExpression = "create_order")
 public class TestOrderListen implements RocketMQListener<String> {
 
     @Override

@@ -3,6 +3,7 @@ package com.yzx.crazycodingbyteorder.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import com.yzx.crazycodingbytecommon.entity.BusinessException;
@@ -22,6 +23,7 @@ import com.yzx.crazycodingbyteorder.mapper.OrderMapper;
 import com.yzx.crazycodingbyteorder.mapper.OrderOperationLogMapper;
 import com.yzx.crazycodingbyteorder.service.OrderService;
 import com.yzx.crazycodingbyteorder.vo.OrderVO;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.SendStatus;
@@ -60,35 +62,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             // 1. 生成订单号
             String orderNo = generateOrderNo();
             //创建订单之前要先发送锁库存消息 只有锁成功才创建订单
-            // 6. 发送库存锁定消息（事务消息）
-            InventoryLockDTO lockDTO = new InventoryLockDTO();
-            lockDTO.setOrderNo(orderNo);
-            lockDTO.setProductId(request.getProductId());
-            lockDTO.setQuantity(request.getQuantity());
-            lockDTO.setUserId(request.getUserId());
-
-
-            // 发送半消息到库存服务
-            Message<InventoryLockDTO> message = MessageBuilder.withPayload(lockDTO)
-                    .setHeader("ORDER_NO", orderNo)
-                    .build();
-
-            TransactionSendResult result = rocketMQTemplate.sendMessageInTransaction(
-                    OrderConstant.TOPIC_INVENTORY_LOCK,
-                    message,
-                    orderNo  // 事务参数，会传递给事务监听器
-            );
-
-            // 校验半消息发送状态
-            if (result.getSendStatus() != SendStatus.SEND_OK) {
-                throw new BusinessException("库存锁定请求发送失败");
-            }
-            log.info("发送库存锁定事务消息成功，订单号：{}，消息ID：{}", orderNo, result.getMsgId());
-
             // 2. 计算订单总金额
-            BigDecimal totalAmount = request.getProductPrice()
-                    .multiply(BigDecimal.valueOf(request.getQuantity()));
-
+            BigDecimal totalAmount = request.getProductPrice().multiply(BigDecimal.valueOf(request.getQuantity()));
             // 3. 创建订单记录
             Order order = new Order();
             order.setOrderNo(orderNo);
@@ -102,7 +77,6 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             if (orderInsertResult <= 0) {
                 throw new BusinessException("创建订单失败");
             }
-
             // 4. 创建订单详情
             OrderDetail orderDetail = new OrderDetail();
             orderDetail.setOrderNo(orderNo);
@@ -117,21 +91,45 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             if (detailInsertResult <= 0) {
                 throw new BusinessException("创建订单详情失败");
             }
-
             // 5. 记录操作日志
-            saveOperationLog(orderNo, OrderOperationTypeEnum.CREATE,
-                    null, OrderStatusEnum.WAIT_PAY.getCode(),
-                    "用户创建订单", request.getUserId(), "用户");
+            saveOperationLog(orderNo, OrderOperationTypeEnum.CREATE, null, OrderStatusEnum.WAIT_PAY.getCode(), "用户创建订单", request.getUserId(), "用户");
+            // 6. 发送库存锁定消息（事务消息）
+            InventoryLockDTO lockDTO = new InventoryLockDTO();
+            lockDTO.setOrderNo(orderNo);
+            lockDTO.setProductId(request.getProductId());
+            lockDTO.setQuantity(request.getQuantity());
+            lockDTO.setUserId(request.getUserId());
+            // 发送半消息到库存服务
+            Message<InventoryLockDTO> message = MessageBuilder.withPayload(lockDTO).setHeader("ORDER_NO", orderNo).build();
 
+            TransactionSendResult result = rocketMQTemplate.sendMessageInTransaction(OrderConstant.TOPIC_INVENTORY_LOCK, message, orderNo  // 事务参数，会传递给事务监听器
+            );
+            // 校验半消息发送状态
+            if (result.getSendStatus() != SendStatus.SEND_OK) {
+                throw new BusinessException("库存锁定请求发送失败");
+            }
+            log.info("发送库存锁定事务消息成功，订单号：{}，消息ID：{}", orderNo, result.getMsgId());
             // 7. 返回订单信息
             OrderVO orderVO = convertToVO(order);
+            //这里应该还要发送一个延迟消息 判断用户30分钟之类是否支付如果支付了就修改状态
+            // 发送半消息到库存服务
+            OrderDelayCheckDTO delayDTO = new OrderDelayCheckDTO();
+            delayDTO.setOrderNo(orderNo);
+            delayDTO.setUserId(request.getUserId());
+            Message<InventoryLockDTO> orderMessage = MessageBuilder.withPayload(lockDTO).setHeader("ORDER_NO", JSON.toJSON(delayDTO)).build();
+            rocketMQTemplate.syncSend("order_topic", orderMessage, 10000, 4);
             return Result.success(orderVO);
-
         } catch (Exception e) {
             log.error("创建订单失败", e);
             sendUnlockStockRequest(request);
             throw new BusinessException("创建订单失败：" + e.getMessage());
         }
+    }
+
+    @Data
+    public class OrderDelayCheckDTO {
+        private String orderNo;
+        private Long userId;
     }
 
     private void sendUnlockStockRequest(CreateOrderRequest request) {
@@ -144,10 +142,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         unlockDTO.setUserId(request.getUserId());
 
         // 发送解锁请求（同步发送，确保送达）
-        rocketMQTemplate.syncSend(
-                OrderConstant.TOPIC_INVENTORY_UNLOCK,
-                MessageBuilder.withPayload(unlockDTO).build()
-        );
+        rocketMQTemplate.syncSend(OrderConstant.TOPIC_INVENTORY_UNLOCK, MessageBuilder.withPayload(unlockDTO).build());
         log.info("发送解锁库存请求成功，订单号：{}，商品ID：{}", orderNo, request.getProductId());
     }
 
@@ -223,9 +218,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         }
 
         // 记录操作日志
-        saveOperationLog(orderNo, OrderOperationTypeEnum.CANCEL,
-                OrderStatusEnum.WAIT_PAY.getCode(), OrderStatusEnum.CANCELED.getCode(),
-                "用户取消订单", userId, "用户");
+        saveOperationLog(orderNo, OrderOperationTypeEnum.CANCEL, OrderStatusEnum.WAIT_PAY.getCode(), OrderStatusEnum.CANCELED.getCode(), "用户取消订单", userId, "用户");
 
         // 发送库存释放消息
         InventoryLockDTO lockDTO = new InventoryLockDTO();
@@ -234,9 +227,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         lockDTO.setQuantity(order.getQuantity());
         lockDTO.setUserId(userId);
 
-        Message<InventoryLockDTO> message = MessageBuilder.withPayload(lockDTO)
-                .setHeader("ORDER_NO", orderNo)
-                .build();
+        Message<InventoryLockDTO> message = MessageBuilder.withPayload(lockDTO).setHeader("ORDER_NO", orderNo).build();
 
         rocketMQTemplate.syncSend(OrderConstant.TOPIC_ORDER_CANCEL, message);
 
@@ -246,8 +237,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
     @Override
     public void handleInventoryLockResult(String orderNo, boolean lockSuccess, String message) {
-        log.info("处理库存锁定结果，订单号：{}，锁定结果：{}，消息：{}",
-                orderNo, lockSuccess, message);
+        log.info("处理库存锁定结果，订单号：{}，锁定结果：{}，消息：{}", orderNo, lockSuccess, message);
 
         try {
             Order order = orderMapper.selectByOrderNo(orderNo);
@@ -262,9 +252,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                 int updateResult = orderMapper.updateOrderStatus(orderNo, OrderStatusEnum.WAIT_PAY.getCode());
                 if (updateResult > 0) {
                     log.info("库存锁定成功，订单已更新为待支付，订单号：{}", orderNo);
-                    saveOperationLog(orderNo, OrderOperationTypeEnum.UPDATE_STATUS,
-                            OrderStatusEnum.LOCKING.getCode(), OrderStatusEnum.WAIT_PAY.getCode(),
-                            "库存锁定成功，订单转为待支付", 0L, "系统");
+                    saveOperationLog(orderNo, OrderOperationTypeEnum.UPDATE_STATUS, OrderStatusEnum.LOCKING.getCode(), OrderStatusEnum.WAIT_PAY.getCode(), "库存锁定成功，订单转为待支付", 0L, "系统");
                 }
             } else {
                 log.error("库存锁定失败，订单号：{}，错误信息：{}", orderNo, message);
@@ -313,10 +301,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         }
 
         // 记录操作日志
-        saveOperationLog(orderNo, OrderOperationTypeEnum.PAY,
-                OrderStatusEnum.WAIT_PAY.getCode(), OrderStatusEnum.PAID.getCode(),
-                StrUtil.format("订单支付成功，支付流水号：{}", payNo),
-                order.getUserId(), "支付系统");
+        saveOperationLog(orderNo, OrderOperationTypeEnum.PAY, OrderStatusEnum.WAIT_PAY.getCode(), OrderStatusEnum.PAID.getCode(), StrUtil.format("订单支付成功，支付流水号：{}", payNo), order.getUserId(), "支付系统");
 
 
         return Result.success();
@@ -327,17 +312,13 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
      */
     private String generateOrderNo() {
         // 格式：ORD + 时间戳 + 随机数
-        return OrderConstant.ORDER_NO_PREFIX +
-                System.currentTimeMillis() +
-                IdUtil.getSnowflakeNextId() % 1000;
+        return OrderConstant.ORDER_NO_PREFIX + System.currentTimeMillis() + IdUtil.getSnowflakeNextId() % 1000;
     }
 
     /**
      * 保存操作日志
      */
-    private void saveOperationLog(String orderNo, OrderOperationTypeEnum operationType,
-                                  Integer beforeStatus, Integer afterStatus,
-                                  String remark, Long operatorId, String operatorName) {
+    private void saveOperationLog(String orderNo, OrderOperationTypeEnum operationType, Integer beforeStatus, Integer afterStatus, String remark, Long operatorId, String operatorName) {
         OrderOperationLog log = new OrderOperationLog();
         log.setOrderNo(orderNo);
         log.setOperationType(operationType.getCode());
@@ -364,10 +345,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                 orderMapper.updateToCanceled(orderNo, OrderStatusEnum.CANCELED.getCode());
 
                 // 记录操作日志
-                saveOperationLog(orderNo, OrderOperationTypeEnum.CANCEL,
-                        OrderStatusEnum.LOCKING.getCode(), OrderStatusEnum.CANCELED.getCode(),
-                        "库存锁定失败，系统自动取消订单",
-                        0L, "系统");
+                saveOperationLog(orderNo, OrderOperationTypeEnum.CANCEL, OrderStatusEnum.LOCKING.getCode(), OrderStatusEnum.CANCELED.getCode(), "库存锁定失败，系统自动取消订单", 0L, "系统");
 
                 log.info("库存锁定失败，已自动取消订单，订单号：{}", orderNo);
             }
