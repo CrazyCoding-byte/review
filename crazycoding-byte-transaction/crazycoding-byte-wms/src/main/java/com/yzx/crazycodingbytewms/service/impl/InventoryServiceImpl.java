@@ -5,6 +5,7 @@ import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yzx.crazycodingbytecommon.entity.BusinessException;
+import com.yzx.crazycodingbytecommon.entity.Idempotent;
 import com.yzx.crazycodingbytewms.constant.OrderConstant;
 import com.yzx.crazycodingbytewms.dto.InventoryLockDTO;
 import com.yzx.crazycodingbytewms.dto.InventoryLockResultDTO;
@@ -47,6 +48,9 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Idempotent(key = "'LOCK_STOCK_'+#lockDTO.orderNo",//SpEl表达式,解析后LOCK_STOCK_20260108123456,message="请勿重复锁定库存"
+            message = "请勿重复锁定库存"
+    )
     public boolean lockStock(InventoryLockDTO lockDTO) {
         log.info("开始锁库存，订单号：{}，商品ID：{}，锁定数量：{}", lockDTO.getOrderNo(), lockDTO.getProductId(), lockDTO.getQuantity());
         boolean lockSuccess = false;
@@ -147,6 +151,10 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Idempotent(
+            key = "'UNLOCK_STOCK_'+#unlockDTO.orderNo",
+            message = "请勿重复解锁库存"
+    )
     public boolean unlockStock(InventoryLockDTO unlockDTO) {
         log.info("开始解锁库存，订单号：{}，商品ID：{}，解锁数量：{}", unlockDTO.getOrderNo(), unlockDTO.getProductId(), unlockDTO.getQuantity());
 
@@ -215,6 +223,10 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
     //支付成功之后实际扣减库存
     // 在InventoryServiceImpl中补充deductLockedStock方法
     @Transactional(rollbackFor = Exception.class)
+    @Idempotent(
+            key = "'DEDUCT_LOCKED_STOCK_'+#unlockDTO.orderNo",
+            message = "请勿重复扣减库存"
+    )
     public boolean deductLockedStock(InventoryLockDTO deductDTO) {
         log.info("开始扣减锁定库存，订单号：{}，商品ID：{}，扣减数量：{}", deductDTO.getOrderNo(), deductDTO.getProductId(), deductDTO.getQuantity());
 

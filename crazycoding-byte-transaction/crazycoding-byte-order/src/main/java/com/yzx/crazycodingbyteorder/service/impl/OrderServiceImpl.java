@@ -7,6 +7,7 @@ import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import com.yzx.crazycodingbytecommon.entity.BusinessException;
+import com.yzx.crazycodingbytecommon.entity.Idempotent;
 import com.yzx.crazycodingbytecommon.entity.Result;
 import com.yzx.crazycodingbyteorder.constant.OrderConstant;
 import com.yzx.crazycodingbyteorder.dto.CreateOrderRequest;

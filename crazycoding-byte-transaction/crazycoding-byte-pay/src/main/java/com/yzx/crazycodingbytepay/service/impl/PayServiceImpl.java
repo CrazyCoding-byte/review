@@ -2,6 +2,7 @@
 package com.yzx.crazycodingbytepay.service.impl;
 
 
+import com.yzx.crazycodingbytecommon.entity.Idempotent;
 import com.yzx.crazycodingbytepay.dto.PayRequest;
 import com.yzx.crazycodingbytepay.dto.PayResponse;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,10 @@ public class PayServiceImpl implements PayService {
      * 3. 支付结果同步更新本地消息表状态
      */
     @Transactional
+    @Idempotent(
+            key = "'PAY_ORDER_'+#request.orderNo",
+            message = "请勿重复支付"
+    )
     @Override
     public PayResponse processPayment(PayRequest request) {
         // 1. 生成支付单号

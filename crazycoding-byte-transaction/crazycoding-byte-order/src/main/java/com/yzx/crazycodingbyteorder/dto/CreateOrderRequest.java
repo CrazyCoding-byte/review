@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 @Data
 public class CreateOrderRequest implements Serializable {
     private static final long serialVersionUID = 1L;
+
     @NotNull(message = "用户ID不能为空")
     private Long userId;
     @NotNull(message = "商品ID不能为空")
